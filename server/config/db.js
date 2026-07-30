@@ -1,18 +1,18 @@
 import mongoose from 'mongoose';
 
 /**
- * Connect to MongoDB database instance
- * Placeholder configuration for Phase 1
+ * Connect to MongoDB database
  */
 export const connectDB = async () => {
   try {
-    const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/youtube_watch_party';
-    
-    // Note: Actual connection call is commented out until MongoDB instance is running in later phases
-    // const conn = await mongoose.connect(mongoUri);
-    // console.log(`MongoDB Connected: ${conn.connection.host}`);
-    
-    console.log(`[DB Config] MongoDB connection file initialized. Target URI: ${mongoUri}`);
+    const mongoUri = process.env.MONGO_URI;
+
+    if (!mongoUri) {
+      throw new Error('MONGO_URI is not defined in environment variables');
+    }
+
+    const conn = await mongoose.connect(mongoUri);
+    console.log(`MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
     console.error(`Database Connection Error: ${error.message}`);
     process.exit(1);

@@ -1,23 +1,49 @@
 import mongoose from 'mongoose';
 
-/**
- * Room Schema Placeholder for Phase 1
- */
+const participantSchema = new mongoose.Schema(
+  {
+    socketId: {
+      type: String,
+      required: true,
+    },
+    username: {
+      type: String,
+      required: true,
+    },
+    role: {
+      type: String,
+      enum: ['Host', 'Moderator', 'Participant'],
+      default: 'Participant',
+    },
+  },
+  { _id: false }
+);
+
 const roomSchema = new mongoose.Schema(
   {
-    code: {
+    roomId: {
       type: String,
       required: true,
       unique: true,
+      trim: true,
     },
-    name: {
-      type: String,
-      default: 'Watch Party Room',
-    },
-    hostId: {
+    hostSocketId: {
       type: String,
       required: true,
     },
+    currentVideoId: {
+      type: String,
+      default: '',
+    },
+    currentTime: {
+      type: Number,
+      default: 0,
+    },
+    isPlaying: {
+      type: Boolean,
+      default: false,
+    },
+    participants: [participantSchema],
   },
   {
     timestamps: true,

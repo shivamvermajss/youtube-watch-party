@@ -5,7 +5,6 @@ import app from './app.js';
 import { connectDB } from './config/db.js';
 import { getCorsOptions } from './config/corsConfig.js';
 import { initializeSocketHandlers } from './socket/socketHandler.js';
-import { logInfo } from './utils/logger.js';
 
 // Load environment variables
 dotenv.config();
@@ -20,13 +19,16 @@ const io = new Server(server, {
   cors: getCorsOptions(),
 });
 
-// Set up Socket.IO event listeners
+// Register Socket.IO handlers
 initializeSocketHandlers(io);
 
-// Initialize Database connection (placeholder trigger)
-connectDB();
+// Start server after initializing DB connection trigger
+const startServer = async () => {
+  await connectDB();
 
-// Start Server
-server.listen(PORT, () => {
-  logInfo(`Server is running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
-});
+  server.listen(PORT, () => {
+    console.log(`Server listening on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
+  });
+};
+
+startServer();
