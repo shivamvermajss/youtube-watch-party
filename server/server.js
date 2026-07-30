@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 import app from './app.js';
 import { connectDB } from './config/db.js';
 import { getCorsOptions } from './config/corsConfig.js';
-import { initializeSocketHandlers } from './socket/socketHandler.js';
+import { initializeSocket } from './socket/socketHandler.js';
 
 // Load environment variables
 dotenv.config();
@@ -19,8 +19,8 @@ const io = new Server(server, {
   cors: getCorsOptions(),
 });
 
-// Register Socket.IO handlers
-initializeSocketHandlers(io);
+// Register Socket.IO connection event listeners
+initializeSocket(io);
 
 // Start server after initializing DB connection trigger
 const startServer = async () => {
