@@ -10,4 +10,35 @@ export const api = axios.create({
   timeout: 10000,
 });
 
+/**
+ * Create room API call
+ */
+export const createRoomApi = async (username, socketId) => {
+  const response = await api.post('/rooms/create', {
+    username,
+    hostSocketId: socketId || `temp_${Date.now()}`,
+  });
+  return response.data;
+};
+
+/**
+ * Join room API call
+ */
+export const joinRoomApi = async (roomId, username, socketId) => {
+  const response = await api.post('/rooms/join', {
+    roomId,
+    username,
+    socketId: socketId || `temp_${Date.now()}`,
+  });
+  return response.data;
+};
+
+/**
+ * Get room details by roomId API call
+ */
+export const getRoomApi = async (roomId) => {
+  const response = await api.get(`/rooms/${roomId}`);
+  return response.data;
+};
+
 export default api;
