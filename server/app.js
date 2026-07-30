@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { getCorsOptions } from './config/corsConfig.js';
 import roomRoutes from './routes/roomRoutes.js';
+import { loggerMiddleware } from './middleware/loggerMiddleware.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 
 const app = express();
@@ -9,6 +10,7 @@ const app = express();
 // Global Middleware
 app.use(cors(getCorsOptions()));
 app.use(express.json());
+app.use(loggerMiddleware);
 
 // Health Check Route
 app.get('/api/health', (req, res) => {

@@ -1,5 +1,6 @@
 import Room from '../models/Room.js';
 import { generateRoomId } from '../utils/generateRoomId.js';
+import { findRoomByRoomId } from '../utils/findRoomByRoomId.js';
 
 /**
  * Create a new watch party room
@@ -18,21 +19,21 @@ export const createRoom = async (req, res, next) => {
 
     // Generate unique 6-character room code
     let roomId = generateRoomId();
-    let existingRoom = await Room.findOne({ roomId });
+    let existingRoom = await findRoomByRoomId(roomId);
 
     while (existingRoom) {
       roomId = generateRoomId();
-      existingRoom = await Room.findOne({ roomId });
+      existingRoom = await findRoomByRoomId(roomId);
     }
 
-    // Create new room document
+    // Create room with host participant
     const newRoom = await Room.create({
       roomId,
       hostSocketId,
       participants: [
         {
           socketId: hostSocketId,
-          username,
+          username: username.trim(),
           role: 'Host',
         },
       ],
@@ -63,8 +64,7 @@ export const joinRoom = async (req, res, next) => {
       });
     }
 
-    const formattedRoomId = roomId.toUpperCase();
-    const room = await Room.findOne({ roomId: formattedRoomId });
+    const room = await findRoomByRoomId(roomId);
 
     if (!room) {
       return res.status(404).json({
@@ -73,24 +73,101 @@ export const joinRoom = async (req, res, next) => {
       });
     }
 
-    // Check if participant already exists in the room
-    const existingParticipant = room.participants.find(
-      (participant) => participant.socketId === socketId
+    const trimmedUsername = username.trim();
+
+    // Check if username is already taken by another participant in this room
+    const isUsernameTaken = room.participants.some(
+      (participant) => participant.username.toLowerCase() === trimmedUsername.toLowerCase()
     );
 
-    if (!existingParticipant) {
-      room.participants.push({
-        socketId,
-        username,
-        role: 'Participant',
+    if (isUsernameTaken) {
+      return res.status(409).json({
+        success: false,
+        message: 'Username is already taken in this room',
       });
-      await room.save();
     }
+
+    // Add new participant
+    room.participants.push({
+      socketId,
+      username: trimmedUsername,
+      role: 'Participant',
+    });
+
+    await room.save();
 
     return res.status(200).json({
       success: true,
       message: 'Joined room successfully',
       data: room,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get room details by roomId
+ * GET /api/rooms/:roomId
+ */
+export const getRoomByRoomId = async (req, res, next) => {
+  try {
+    const { roomId } = req.params;
+
+    if (!roomId) {
+      return res.status(400).json({
+        success: false,
+        message: 'RoomId parameter is required',
+      });
+    }
+
+    const room = await findRoomByRoomId(roomId);
+
+    if (!room) {
+      return res.status(404).json({
+        success: false,
+        message: 'Room not found',
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Room details retrieved successfully',
+      data: room,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get list of participants in a room
+ * GET /api/rooms/:roomId/participants
+ */
+export const getRoomParticipants = async (req, res, next) => {
+  try {
+    const { roomId } = req.params;
+
+    if (!roomId) {
+      return res.status(400).json({
+        success: false,
+        message: 'RoomId parameter is required',
+      });
+    }
+
+    const room = await findRoomByRoomId(roomId);
+
+    if (!room) {
+      return res.status(404).json({
+        success: false,
+        message: 'Room not found',
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Participants retrieved successfully',
+      data: room.participants,
     });
   } catch (error) {
     next(error);
