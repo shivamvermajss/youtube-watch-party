@@ -1,15 +1,4 @@
-import { io } from 'socket.io-client';
+import socket from './socket.js';
 
-/**
- * Socket.IO service helper placeholder
- */
-let socketInstance = null;
-
-export const getSocket = () => {
-  if (!socketInstance) {
-    socketInstance = io('http://localhost:5000', {
-      autoConnect: false,
-    });
-  }
-  return socketInstance;
-};
+export const getSocket = () => socket;
+export default socket;
