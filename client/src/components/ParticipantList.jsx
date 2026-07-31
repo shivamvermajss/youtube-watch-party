@@ -43,7 +43,7 @@ export const ParticipantList = ({ roomId, participants = [], localUsername = '' 
           </p>
         </div>
       ) : (
-        <div className="space-y-3.5">
+        <div className="space-y-3.5 max-h-[650px] overflow-y-auto custom-scrollbar pr-1">
           {participants.map((participant, index) => {
             const role = participant.role || 'Participant';
             const isHost = role === 'Host';
@@ -138,7 +138,7 @@ export const ParticipantList = ({ roomId, participants = [], localUsername = '' 
                         size="sm"
                         variant="secondary"
                         onClick={() => handleAssignRole(participant.username, 'Moderator')}
-                        className="flex-1 min-w-[130px] text-xs py-2 px-3 bg-indigo-950/30 hover:bg-indigo-900/50 text-indigo-300 hover:text-white border border-indigo-500/40 hover:border-indigo-400 font-semibold rounded-xl shadow-sm transition-all duration-200 focus:ring-2 focus:ring-indigo-500/50 hover:-translate-y-0.5"
+                        className="flex-1 min-w-[130px] text-xs py-2 px-3 bg-indigo-950/30 hover:bg-indigo-900/50 text-indigo-300 hover:text-white border border-indigo-500/40 hover:border-indigo-400 font-semibold rounded-xl shadow-sm transition-all duration-200 focus:ring-2 focus:ring-indigo-500/50"
                         title="Promote to Moderator"
                         aria-label={`Promote ${participant.username} to Moderator`}
                       >
@@ -152,7 +152,7 @@ export const ParticipantList = ({ roomId, participants = [], localUsername = '' 
                         size="sm"
                         variant="secondary"
                         onClick={() => handleAssignRole(participant.username, 'Participant')}
-                        className="flex-1 min-w-[130px] text-xs py-2 px-3 bg-blue-950/30 hover:bg-blue-900/50 text-blue-300 hover:text-white border border-blue-500/40 hover:border-blue-400 font-semibold rounded-xl shadow-sm transition-all duration-200 focus:ring-2 focus:ring-blue-500/50 hover:-translate-y-0.5"
+                        className="flex-1 min-w-[130px] text-xs py-2 px-3 bg-blue-950/30 hover:bg-blue-900/50 text-blue-300 hover:text-white border border-blue-500/40 hover:border-blue-400 font-semibold rounded-xl shadow-sm transition-all duration-200 focus:ring-2 focus:ring-blue-500/50"
                         title="Demote to Participant"
                         aria-label={`Demote ${participant.username} to Participant`}
                       >
@@ -165,7 +165,7 @@ export const ParticipantList = ({ roomId, participants = [], localUsername = '' 
                       size="sm"
                       variant="danger"
                       onClick={() => handleRemoveParticipant(participant.username)}
-                      className="flex-1 min-w-[110px] text-xs py-2 px-3 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-semibold shadow-md shadow-rose-600/20 border border-rose-500/40 rounded-xl transition-all duration-200 focus:ring-2 focus:ring-rose-500/50 hover:-translate-y-0.5"
+                      className="flex-1 min-w-[110px] text-xs py-2 px-3 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-semibold shadow-md shadow-rose-600/20 border border-rose-500/40 rounded-xl transition-all duration-200 focus:ring-2 focus:ring-rose-500/50"
                       title="Remove User from Room"
                       aria-label={`Remove ${participant.username} from room`}
                     >
