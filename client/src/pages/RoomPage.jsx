@@ -3,12 +3,17 @@ import { useParams, Link } from 'react-router-dom';
 import Card from '../components/Card.jsx';
 import Button from '../components/Button.jsx';
 import Loader from '../components/Loader.jsx';
+import { PlayerPlaceholder } from '../components/PlayerPlaceholder.jsx';
+import YouTubePlayer from '../components/YouTubePlayer.jsx';
+import HostVideoControls from '../components/HostVideoControls.jsx';
 import { getRoomApi } from '../services/api.js';
-import { Users, Play, Copy, Check, AlertCircle, Crown, Home } from 'lucide-react';
+import { getUserData } from '../utils/helpers.js';
+import { Users, Copy, Check, AlertCircle, Crown, Home } from 'lucide-react';
 
 export const RoomPage = () => {
   const { roomId } = useParams();
   const [room, setRoom] = useState(null);
+  const [currentVideoId, setCurrentVideoId] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
@@ -22,6 +27,9 @@ export const RoomPage = () => {
         const res = await getRoomApi(roomId);
         if (res.success && res.data) {
           setRoom(res.data);
+          if (res.data.currentVideoId) {
+            setCurrentVideoId(res.data.currentVideoId);
+          }
         } else {
           setError(res.message || 'Room not found.');
         }
@@ -44,6 +52,15 @@ export const RoomPage = () => {
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('Failed to copy room code:', err);
+    }
+  };
+
+  const handleVideoLoaded = (videoId, updatedRoom) => {
+    setCurrentVideoId(videoId);
+    if (updatedRoom) {
+      setRoom(updatedRoom);
+    } else {
+      setRoom((prev) => (prev ? { ...prev, currentVideoId: videoId } : prev));
     }
   };
 
@@ -83,6 +100,11 @@ export const RoomPage = () => {
   }
 
   const participants = room.participants || [];
+  const { username: localUsername } = getUserData();
+  const currentParticipant = participants.find(
+    (p) => p.username?.toLowerCase() === localUsername?.toLowerCase()
+  );
+  const isHost = currentParticipant?.role === 'Host';
 
   return (
     <div className="space-y-6">
@@ -118,18 +140,30 @@ export const RoomPage = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Player Area Placeholder */}
+        {/* Main Player Area & Host Controls */}
         <div className="lg:col-span-2 space-y-4">
-          <Card className="aspect-video flex flex-col items-center justify-center bg-slate-950 border-dashed border-slate-800">
-            <div className="p-4 bg-indigo-600/10 rounded-full text-indigo-400 mb-3">
-              <Play className="w-10 h-10" />
-            </div>
-            <p className="text-slate-400 font-medium">YouTube Video Player Placeholder</p>
-            <p className="text-xs text-slate-500 mt-1">Video playback integration will be added in future phases.</p>
-          </Card>
+          {currentVideoId ? (
+            <YouTubePlayer videoId={currentVideoId} />
+          ) : (
+            <PlayerPlaceholder />
+          )}
 
-          <Card title="Now Playing" subtitle="No video currently playing">
-            <p className="text-sm text-slate-400">Host can paste a YouTube URL to load video for all participants.</p>
+          {isHost && (
+            <HostVideoControls
+              roomId={room.roomId}
+              onVideoLoaded={handleVideoLoaded}
+            />
+          )}
+
+          <Card
+            title="Now Playing"
+            subtitle={currentVideoId ? `Video ID: ${currentVideoId}` : 'No video currently playing'}
+          >
+            <p className="text-sm text-slate-400">
+              {currentVideoId
+                ? 'Video loaded into player.'
+                : 'Host can paste a YouTube URL to load video for all participants.'}
+            </p>
           </Card>
         </div>
 
@@ -141,7 +175,7 @@ export const RoomPage = () => {
           >
             <div className="space-y-3">
               {participants.map((participant, index) => {
-                const isHost = participant.role === 'Host';
+                const participantIsHost = participant.role === 'Host';
                 return (
                   <div
                     key={participant.socketId || index}
@@ -150,7 +184,7 @@ export const RoomPage = () => {
                     <div className="flex items-center space-x-3">
                       <div
                         className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-white text-xs ${
-                          isHost ? 'bg-indigo-600' : 'bg-slate-700'
+                          participantIsHost ? 'bg-indigo-600' : 'bg-slate-700'
                         }`}
                       >
                         {participant.username ? participant.username.charAt(0).toUpperCase() : 'U'}
@@ -158,14 +192,14 @@ export const RoomPage = () => {
                       <div>
                         <p className="text-sm font-medium text-white flex items-center gap-1.5">
                           {participant.username}
-                          {isHost && <Crown className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />}
+                          {participantIsHost && <Crown className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />}
                         </p>
                         <p className="text-[11px] text-slate-400">
-                          {isHost ? 'Room Admin' : 'Participant'}
+                          {participantIsHost ? 'Room Admin' : 'Participant'}
                         </p>
                       </div>
                     </div>
-                    {isHost && (
+                    {participantIsHost && (
                       <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
                         Host
                       </span>

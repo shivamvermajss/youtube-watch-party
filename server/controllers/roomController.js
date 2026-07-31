@@ -173,3 +173,49 @@ export const getRoomParticipants = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * Update room video ID
+ * PATCH /api/rooms/:roomId/video
+ */
+export const updateRoomVideo = async (req, res, next) => {
+  try {
+    const { roomId } = req.params;
+    const { videoId } = req.body;
+
+    if (!roomId) {
+      return res.status(400).json({
+        success: false,
+        message: 'RoomId parameter is required',
+      });
+    }
+
+    if (videoId === undefined || videoId === null) {
+      return res.status(400).json({
+        success: false,
+        message: 'VideoId is required',
+      });
+    }
+
+    const room = await findRoomByRoomId(roomId);
+
+    if (!room) {
+      return res.status(404).json({
+        success: false,
+        message: 'Room not found',
+      });
+    }
+
+    room.currentVideoId = String(videoId).trim();
+    await room.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Room video updated successfully',
+      data: room,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+

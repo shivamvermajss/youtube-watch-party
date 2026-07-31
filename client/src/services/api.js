@@ -41,4 +41,14 @@ export const getRoomApi = async (roomId) => {
   return response.data;
 };
 
+/**
+ * Update room video ID API call
+ */
+export const updateRoomVideoApi = async (roomId, videoId) => {
+  const response = await api.patch(`/rooms/${roomId}/video`, {
+    videoId,
+  });
+  return response.data;
+};
+
 export default api;
