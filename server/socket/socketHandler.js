@@ -1,5 +1,11 @@
 import Room from '../models/Room.js';
 import { findRoomByRoomId } from '../utils/findRoomByRoomId.js';
+import {
+  canControlPlayback,
+  canAssignRoles,
+  canRemoveParticipant,
+  getUserRoleInRoom,
+} from '../utils/permissions.js';
 
 // In-memory store for pending disconnect grace period timeouts
 // Key: `${roomId}_${username.toLowerCase()}` -> Timeout ID
@@ -132,6 +138,21 @@ export const initializeSocket = (io) => {
 
         const trimmedUsername = username.trim();
 
+        // Check if participant was removed from this room by the host
+        const isRemoved =
+          Array.isArray(room.removedParticipants) &&
+          room.removedParticipants.some(
+            (name) => name.toLowerCase() === trimmedUsername.toLowerCase()
+          );
+
+        if (isRemoved) {
+          console.warn(`[Socket Warning] Blocked removed user ${trimmedUsername} from rejoining room ${roomId}`);
+          return socket.emit('room-access-denied', {
+            success: false,
+            message: 'You have been removed from this room by the host.',
+          });
+        }
+
         // Cancel any pending disconnect removal timeout for this user
         cancelDisconnectTimeout(roomId, trimmedUsername);
 
@@ -248,7 +269,7 @@ export const initializeSocket = (io) => {
       }
     });
 
-    // Event: host-video-change
+    // Event: host-video-change (Protected: Host & Moderator)
     socket.on('host-video-change', async (data) => {
       try {
         const { roomId, username, videoId, currentTime, isPlaying } = data || {};
@@ -258,13 +279,14 @@ export const initializeSocket = (io) => {
         if (!room) return;
 
         const trimmedUsername = username.trim();
-        const isHost =
-          (room.hostUsername && room.hostUsername.toLowerCase() === trimmedUsername.toLowerCase()) ||
-          room.participants.some((p) => p.socketId === socket.id && p.role === 'Host');
+        const userRole = getUserRoleInRoom(room, socket.id, trimmedUsername);
 
-        if (!isHost) {
-          console.warn(`[Socket Warning] Non-host user ${trimmedUsername} attempted host-video-change in ${roomId}`);
-          return;
+        if (!canControlPlayback(userRole)) {
+          console.warn(`[Socket Warning] Unauthorized video-change attempt by ${trimmedUsername} (${userRole}) in ${roomId}`);
+          return socket.emit('error', {
+            success: false,
+            message: 'Unauthorized: Only Host and Moderators can change video.',
+          });
         }
 
         room.currentVideoId = videoId.trim();
@@ -279,13 +301,13 @@ export const initializeSocket = (io) => {
           isPlaying: room.isPlaying,
         });
 
-        console.log(`[Socket] Video change broadcasted in room ${roomId} to ${videoId} by Host ${trimmedUsername}`);
+        console.log(`[Socket] Video change broadcasted in room ${roomId} to ${videoId} by ${userRole} ${trimmedUsername}`);
       } catch (error) {
         console.error(`[Socket Error] Error in host-video-change: ${error.message}`);
       }
     });
 
-    // Event: host-play
+    // Event: host-play (Protected: Host & Moderator)
     socket.on('host-play', async (data) => {
       try {
         const { roomId, username, currentTime } = data || {};
@@ -295,13 +317,14 @@ export const initializeSocket = (io) => {
         if (!room) return;
 
         const trimmedUsername = username.trim();
-        const isHost =
-          (room.hostUsername && room.hostUsername.toLowerCase() === trimmedUsername.toLowerCase()) ||
-          room.participants.some((p) => p.socketId === socket.id && p.role === 'Host');
+        const userRole = getUserRoleInRoom(room, socket.id, trimmedUsername);
 
-        if (!isHost) {
-          console.warn(`[Socket Warning] Non-host user ${trimmedUsername} attempted host-play in ${roomId}`);
-          return;
+        if (!canControlPlayback(userRole)) {
+          console.warn(`[Socket Warning] Unauthorized play attempt by ${trimmedUsername} (${userRole}) in ${roomId}`);
+          return socket.emit('error', {
+            success: false,
+            message: 'Unauthorized: Only Host and Moderators can control playback.',
+          });
         }
 
         room.isPlaying = true;
@@ -311,13 +334,13 @@ export const initializeSocket = (io) => {
         await room.save();
 
         socket.to(room.roomId).emit('sync-play', { currentTime: room.currentTime });
-        console.log(`[Socket] Sync Play broadcasted in room ${roomId} by Host ${trimmedUsername}`);
+        console.log(`[Socket] Sync Play broadcasted in room ${roomId} by ${userRole} ${trimmedUsername}`);
       } catch (error) {
         console.error(`[Socket Error] Error in host-play: ${error.message}`);
       }
     });
 
-    // Event: host-pause
+    // Event: host-pause (Protected: Host & Moderator)
     socket.on('host-pause', async (data) => {
       try {
         const { roomId, username, currentTime } = data || {};
@@ -327,13 +350,14 @@ export const initializeSocket = (io) => {
         if (!room) return;
 
         const trimmedUsername = username.trim();
-        const isHost =
-          (room.hostUsername && room.hostUsername.toLowerCase() === trimmedUsername.toLowerCase()) ||
-          room.participants.some((p) => p.socketId === socket.id && p.role === 'Host');
+        const userRole = getUserRoleInRoom(room, socket.id, trimmedUsername);
 
-        if (!isHost) {
-          console.warn(`[Socket Warning] Non-host user ${trimmedUsername} attempted host-pause in ${roomId}`);
-          return;
+        if (!canControlPlayback(userRole)) {
+          console.warn(`[Socket Warning] Unauthorized pause attempt by ${trimmedUsername} (${userRole}) in ${roomId}`);
+          return socket.emit('error', {
+            success: false,
+            message: 'Unauthorized: Only Host and Moderators can control playback.',
+          });
         }
 
         room.isPlaying = false;
@@ -343,13 +367,13 @@ export const initializeSocket = (io) => {
         await room.save();
 
         socket.to(room.roomId).emit('sync-pause', { currentTime: room.currentTime });
-        console.log(`[Socket] Sync Pause broadcasted in room ${roomId} by Host ${trimmedUsername}`);
+        console.log(`[Socket] Sync Pause broadcasted in room ${roomId} by ${userRole} ${trimmedUsername}`);
       } catch (error) {
         console.error(`[Socket Error] Error in host-pause: ${error.message}`);
       }
     });
 
-    // Event: host-seek
+    // Event: host-seek (Protected: Host & Moderator)
     socket.on('host-seek', async (data) => {
       try {
         const { roomId, username, currentTime } = data || {};
@@ -359,13 +383,14 @@ export const initializeSocket = (io) => {
         if (!room) return;
 
         const trimmedUsername = username.trim();
-        const isHost =
-          (room.hostUsername && room.hostUsername.toLowerCase() === trimmedUsername.toLowerCase()) ||
-          room.participants.some((p) => p.socketId === socket.id && p.role === 'Host');
+        const userRole = getUserRoleInRoom(room, socket.id, trimmedUsername);
 
-        if (!isHost) {
-          console.warn(`[Socket Warning] Non-host user ${trimmedUsername} attempted host-seek in ${roomId}`);
-          return;
+        if (!canControlPlayback(userRole)) {
+          console.warn(`[Socket Warning] Unauthorized seek attempt by ${trimmedUsername} (${userRole}) in ${roomId}`);
+          return socket.emit('error', {
+            success: false,
+            message: 'Unauthorized: Only Host and Moderators can control playback.',
+          });
         }
 
         room.currentTime = currentTime;
@@ -376,13 +401,13 @@ export const initializeSocket = (io) => {
           isPlaying: room.isPlaying,
         });
 
-        console.log(`[Socket] Sync Seek broadcasted in room ${roomId} to time ${currentTime} by Host ${trimmedUsername}`);
+        console.log(`[Socket] Sync Seek broadcasted in room ${roomId} to time ${currentTime} by ${userRole} ${trimmedUsername}`);
       } catch (error) {
         console.error(`[Socket Error] Error in host-seek: ${error.message}`);
       }
     });
 
-    // Event: playback-state-update (Heartbeat from Host every 2-3s)
+    // Event: playback-state-update (Heartbeat - Protected: Host & Moderator)
     socket.on('playback-state-update', async (data) => {
       try {
         const { roomId, username, currentTime, isPlaying } = data || {};
@@ -392,11 +417,9 @@ export const initializeSocket = (io) => {
         if (!room) return;
 
         const trimmedUsername = username.trim();
-        const isHost =
-          (room.hostUsername && room.hostUsername.toLowerCase() === trimmedUsername.toLowerCase()) ||
-          room.participants.some((p) => p.socketId === socket.id && p.role === 'Host');
+        const userRole = getUserRoleInRoom(room, socket.id, trimmedUsername);
 
-        if (!isHost) return;
+        if (!canControlPlayback(userRole)) return;
 
         room.currentTime = currentTime;
         if (typeof isPlaying === 'boolean') {
@@ -405,6 +428,176 @@ export const initializeSocket = (io) => {
         await room.save();
       } catch (error) {
         console.error(`[Socket Error] Error in playback-state-update: ${error.message}`);
+      }
+    });
+
+    // Event: assign-role (Protected: Host only)
+    socket.on('assign-role', async (data) => {
+      try {
+        const { roomId, targetUsername, role, username } = data || {};
+        if (!roomId || !targetUsername || !role) {
+          return socket.emit('error', {
+            success: false,
+            message: 'RoomId, targetUsername, and role are required',
+          });
+        }
+
+        const room = await findRoomByRoomId(roomId);
+        if (!room) {
+          return socket.emit('error', {
+            success: false,
+            message: 'Room not found',
+          });
+        }
+
+        const issuerRole = getUserRoleInRoom(room, socket.id, username);
+
+        if (!canAssignRoles(issuerRole)) {
+          console.warn(`[Socket Warning] Non-host user attempted assign-role in room ${roomId}`);
+          return socket.emit('error', {
+            success: false,
+            message: 'Unauthorized: Only Host can assign roles.',
+          });
+        }
+
+        const normalizedRole = String(role).trim();
+        if (normalizedRole !== 'Moderator' && normalizedRole !== 'Participant') {
+          return socket.emit('error', {
+            success: false,
+            message: 'Invalid role. Allowed roles are Moderator or Participant.',
+          });
+        }
+
+        const targetParticipant = room.participants.find(
+          (p) => p.username.toLowerCase() === targetUsername.trim().toLowerCase()
+        );
+
+        if (!targetParticipant) {
+          return socket.emit('error', {
+            success: false,
+            message: 'Target participant not found in room',
+          });
+        }
+
+        if (targetParticipant.role === 'Host') {
+          return socket.emit('error', {
+            success: false,
+            message: 'Host role cannot be changed via assign-role',
+          });
+        }
+
+        targetParticipant.role = normalizedRole;
+        await room.save();
+
+        console.log(`[Socket] Role assigned in room ${roomId}: ${targetParticipant.username} is now ${normalizedRole}`);
+
+        // Broadcast role-assigned to all participants in the room
+        io.to(room.roomId).emit('role-assigned', {
+          participants: room.participants,
+          room,
+        });
+      } catch (error) {
+        console.error(`[Socket Error] Error in assign-role: ${error.message}`);
+        socket.emit('error', {
+          success: false,
+          message: 'Failed to assign role',
+        });
+      }
+    });
+
+    // Event: remove-participant (Protected: Host only)
+    socket.on('remove-participant', async (data) => {
+      try {
+        const { roomId, targetUsername, username } = data || {};
+        if (!roomId || !targetUsername) {
+          return socket.emit('error', {
+            success: false,
+            message: 'RoomId and targetUsername are required',
+          });
+        }
+
+        const room = await findRoomByRoomId(roomId);
+        if (!room) {
+          return socket.emit('error', {
+            success: false,
+            message: 'Room not found',
+          });
+        }
+
+        const issuerRole = getUserRoleInRoom(room, socket.id, username);
+
+        if (!canRemoveParticipant(issuerRole)) {
+          console.warn(`[Socket Warning] Non-host user attempted remove-participant in room ${roomId}`);
+          return socket.emit('error', {
+            success: false,
+            message: 'Unauthorized: Only Host can remove participants.',
+          });
+        }
+
+        const targetIndex = room.participants.findIndex(
+          (p) => p.username.toLowerCase() === targetUsername.trim().toLowerCase()
+        );
+
+        if (targetIndex === -1) {
+          return socket.emit('error', {
+            success: false,
+            message: 'Participant not found in room',
+          });
+        }
+
+        const targetParticipant = room.participants[targetIndex];
+
+        if (
+          targetParticipant.role === 'Host' ||
+          (room.hostUsername && room.hostUsername.toLowerCase() === targetParticipant.username.toLowerCase())
+        ) {
+          return socket.emit('error', {
+            success: false,
+            message: 'Host cannot remove themselves from the room.',
+          });
+        }
+
+        const targetSocketId = targetParticipant.socketId;
+        const removedUsername = targetParticipant.username;
+
+        // Remove participant from room array
+        room.participants.splice(targetIndex, 1);
+
+        // Add to removedParticipants list to prevent rejoining on refresh
+        if (!room.removedParticipants) {
+          room.removedParticipants = [];
+        }
+        const alreadyRemoved = room.removedParticipants.some(
+          (u) => u.toLowerCase() === removedUsername.toLowerCase()
+        );
+        if (!alreadyRemoved) {
+          room.removedParticipants.push(removedUsername);
+        }
+
+        await room.save();
+
+        console.log(`[Socket] User ${removedUsername} removed from room ${roomId} by Host`);
+
+        // Broadcast participant-removed to all users in the room
+        io.to(room.roomId).emit('participant-removed', {
+          username: removedUsername,
+          participants: room.participants,
+          room,
+        });
+
+        // Make target socket leave room channel if connected
+        if (targetSocketId) {
+          const targetSocket = io.sockets.sockets.get(targetSocketId);
+          if (targetSocket) {
+            targetSocket.leave(room.roomId);
+          }
+        }
+      } catch (error) {
+        console.error(`[Socket Error] Error in remove-participant: ${error.message}`);
+        socket.emit('error', {
+          success: false,
+          message: 'Failed to remove participant',
+        });
       }
     });
 

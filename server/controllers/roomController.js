@@ -78,6 +78,20 @@ export const joinRoom = async (req, res, next) => {
 
     const trimmedUsername = username.trim();
 
+    // Check if user was removed by host from this room
+    const isRemoved =
+      Array.isArray(room.removedParticipants) &&
+      room.removedParticipants.some(
+        (name) => name.toLowerCase() === trimmedUsername.toLowerCase()
+      );
+
+    if (isRemoved) {
+      return res.status(403).json({
+        success: false,
+        message: 'You have been removed from this room by the host.',
+      });
+    }
+
     // Find if participant with same username already exists
     const existingParticipant = room.participants.find(
       (participant) => participant.username.toLowerCase() === trimmedUsername.toLowerCase()

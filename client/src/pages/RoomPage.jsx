@@ -6,10 +6,12 @@ import Loader from '../components/Loader.jsx';
 import { PlayerPlaceholder } from '../components/PlayerPlaceholder.jsx';
 import YouTubePlayer from '../components/YouTubePlayer.jsx';
 import HostVideoControls from '../components/HostVideoControls.jsx';
+import ParticipantList from '../components/ParticipantList.jsx';
 import { getRoomApi } from '../services/api.js';
 import socket from '../services/socketService.js';
 import { getUserData } from '../utils/helpers.js';
-import { Users, Copy, Check, AlertCircle, Crown, Home, Wifi, WifiOff } from 'lucide-react';
+import { canControlPlayback } from '../utils/permissions.js';
+import { AlertCircle, Home, Wifi, WifiOff, Copy, Check } from 'lucide-react';
 
 export const RoomPage = () => {
   const { roomId } = useParams();
@@ -45,12 +47,11 @@ export const RoomPage = () => {
             player.playVideo();
             setTimeout(() => { isSyncingRef.current = false; }, 300);
           } else {
-            // FIX: Briefly play to force YouTube to render the frame, then pause.
             player.playVideo();
             setTimeout(() => {
               player.pauseVideo();
               isSyncingRef.current = false;
-            }, 400); // 400ms gives the iframe enough time to grab the visual frame
+            }, 400);
           }
         } catch (e) {
           isSyncingRef.current = false;
@@ -71,7 +72,6 @@ export const RoomPage = () => {
     isSyncingRef.current = true;
 
     try {
-      // Seek first
       if (
         typeof currentTime === "number" &&
         typeof playerRef.current.seekTo === "function"
@@ -79,7 +79,6 @@ export const RoomPage = () => {
         playerRef.current.seekTo(currentTime, true);
       }
 
-      // Wait for the seek to complete before changing playback
       setTimeout(() => {
         try {
           if (!playerRef.current) return;
@@ -87,11 +86,9 @@ export const RoomPage = () => {
           if (isPlaying) {
             playerRef.current.playVideo();
 
-            // Verify playback actually started.
             setTimeout(() => {
               const state = playerRef.current?.getPlayerState?.();
 
-              // 1 = PLAYING
               if (state !== 1) {
                 playerRef.current.playVideo();
               }
@@ -101,7 +98,6 @@ export const RoomPage = () => {
             }, 500);
 
           } else {
-            // FIX: Force frame load for paused video state on join/refresh
             playerRef.current.playVideo();
             setTimeout(() => {
               playerRef.current.pauseVideo();
@@ -130,6 +126,19 @@ export const RoomPage = () => {
         setError('');
         const res = await getRoomApi(roomId);
         if (res.success && res.data) {
+          const { username: localUsername } = getUserData();
+          const isRemoved =
+            Array.isArray(res.data.removedParticipants) &&
+            res.data.removedParticipants.some(
+              (name) => name.toLowerCase() === localUsername?.toLowerCase()
+            );
+
+          if (isRemoved) {
+            setRoom(null);
+            setError('You have been removed from this room by the host.');
+            return;
+          }
+
           setRoom(res.data);
           if (res.data.currentVideoId) {
             setCurrentVideoId(res.data.currentVideoId);
@@ -148,7 +157,7 @@ export const RoomPage = () => {
     fetchRoomDetails();
   }, [roomId]);
 
-  // 2. Real-time Socket.IO Connection & Playback Event Listeners
+  // 2. Real-time Socket.IO Connection & Event Listeners
   useEffect(() => {
     if (!roomId) return;
 
@@ -163,7 +172,6 @@ export const RoomPage = () => {
     setSocketConnecting(true);
     setSocketError('');
 
-    // Connect socket if not currently connected
     if (!socket.connected) {
       socket.connect();
     }
@@ -189,7 +197,6 @@ export const RoomPage = () => {
       setSocketError("");
 
       if (data?.success && data?.room) {
-        // Reset initial playback restoration
         initialAppliedRef.current = false;
         setRoom(data.room);
         if (data.room.currentVideoId) {
@@ -212,13 +219,47 @@ export const RoomPage = () => {
       }
     };
 
+    // Event: role-assigned
+    const handleRoleAssigned = (data) => {
+      if (data?.participants) {
+        setRoom((prev) => (prev ? { ...prev, participants: data.participants } : prev));
+      } else if (data?.room) {
+        setRoom(data.room);
+      }
+    };
+
+    // Event: participant-removed
+    const handleParticipantRemoved = (data) => {
+      const { username: currentUsername } = getUserData();
+      if (data?.username?.toLowerCase() === currentUsername?.toLowerCase()) {
+        setSocketError('You have been removed from the room by the host.');
+        setRoom(null);
+        setError('You have been removed from this room by the host.');
+        return;
+      }
+      if (data?.participants) {
+        setRoom((prev) => (prev ? { ...prev, participants: data.participants } : prev));
+      } else if (data?.room) {
+        setRoom(data.room);
+      }
+    };
+
+    // Event: room-access-denied
+    const handleRoomAccessDenied = (data) => {
+      const msg = data?.message || 'You have been removed from this room by the host.';
+      setSocketConnecting(false);
+      setSocketError(msg);
+      setRoom(null);
+      setError(msg);
+    };
+
     // Event: request-playback-state (Host receives this when a new participant joins/refreshes)
     const handleRequestPlaybackState = (data) => {
       if (!data?.requesterSocketId) return;
 
       const curTime = playerRef.current?.getCurrentTime ? playerRef.current.getCurrentTime() : 0;
       const playerState = playerRef.current?.getPlayerState ? playerRef.current.getPlayerState() : -1;
-      const isPlaying = playerState === 1; // 1 = YT.PlayerState.PLAYING
+      const isPlaying = playerState === 1;
 
       socket.emit('playback-state', {
         roomId,
@@ -243,7 +284,6 @@ export const RoomPage = () => {
         isPlaying,
       };
 
-      // Reset playback restoration for new sync
       initialAppliedRef.current = false;
 
       if (syncVideoId && syncVideoId !== currentVideoId) {
@@ -254,7 +294,7 @@ export const RoomPage = () => {
       applyPendingPlaybackState();
     };
 
-    // Event: video-changed (Broadcasted to all participants when Host loads a new video)
+    // Event: video-changed
     const handleVideoChanged = (data) => {
       if (!data?.videoId) return;
 
@@ -267,7 +307,7 @@ export const RoomPage = () => {
       setCurrentVideoId(data.videoId);
     };
 
-    // Event: sync-play (Received by non-hosts to play player)
+    // Event: sync-play
     const handleSyncPlay = (data) => {
       if (playerRef.current && typeof playerRef.current.playVideo === 'function') {
         isSyncingRef.current = true;
@@ -288,7 +328,7 @@ export const RoomPage = () => {
       }
     };
 
-    // Event: sync-pause (Received by non-hosts to pause player)
+    // Event: sync-pause
     const handleSyncPause = (data) => {
       if (playerRef.current && typeof playerRef.current.pauseVideo === 'function') {
         isSyncingRef.current = true;
@@ -309,7 +349,7 @@ export const RoomPage = () => {
       }
     };
 
-    // Event: sync-seek (Received by non-hosts when Host seeks)
+    // Event: sync-seek
     const handleSyncSeek = (data) => {
       if (!data || data.currentTime === undefined) return;
       if (playerRef.current && typeof playerRef.current.seekTo === 'function') {
@@ -354,6 +394,9 @@ export const RoomPage = () => {
     socket.on('room-joined', handleRoomJoined);
     socket.on('user-joined', handleUserJoined);
     socket.on('user-left', handleUserLeft);
+    socket.on('role-assigned', handleRoleAssigned);
+    socket.on('participant-removed', handleParticipantRemoved);
+    socket.on('room-access-denied', handleRoomAccessDenied);
     socket.on('request-playback-state', handleRequestPlaybackState);
     socket.on('sync-playback-state', handleSyncPlaybackState);
     socket.on('video-changed', handleVideoChanged);
@@ -370,6 +413,9 @@ export const RoomPage = () => {
       socket.off('room-joined', handleRoomJoined);
       socket.off('user-joined', handleUserJoined);
       socket.off('user-left', handleUserLeft);
+      socket.off('role-assigned', handleRoleAssigned);
+      socket.off('participant-removed', handleParticipantRemoved);
+      socket.off('room-access-denied', handleRoomAccessDenied);
       socket.off('request-playback-state', handleRequestPlaybackState);
       socket.off('sync-playback-state', handleSyncPlaybackState);
       socket.off('video-changed', handleVideoChanged);
@@ -391,6 +437,7 @@ export const RoomPage = () => {
     (p) => p.username?.toLowerCase() === localUsername?.toLowerCase()
   );
   const isHost = currentParticipant?.role === 'Host';
+  const canControl = canControlPlayback(currentParticipant?.role);
 
   // 3. Host Playback Heartbeat & Seek Detection (every 2.5 seconds)
   useEffect(() => {
@@ -403,9 +450,8 @@ export const RoomPage = () => {
       try {
         const currentTime = playerRef.current.getCurrentTime();
         const playerState = playerRef.current.getPlayerState ? playerRef.current.getPlayerState() : -1;
-        const isPlaying = playerState === 1; // 1 = YT.PlayerState.PLAYING
+        const isPlaying = playerState === 1;
 
-        // Detect Seek: if time difference between ticks is > 1.5s and not caused by sync
         const diff = Math.abs(currentTime - lastTimeRef.current);
         if (diff > 1.5 && !isSyncingRef.current) {
           socket.emit('host-seek', {
@@ -417,7 +463,6 @@ export const RoomPage = () => {
 
         lastTimeRef.current = currentTime;
 
-        // Periodic Playback State Heartbeat (every 2.5 seconds)
         socket.emit('playback-state-update', {
           roomId,
           username: localUsername,
@@ -465,14 +510,12 @@ export const RoomPage = () => {
   const handlePlayerReady = (event) => {
     playerRef.current = event.target;
 
-    // If a playback state is waiting, apply it first
     if (pendingPlaybackStateRef.current) {
       applyPendingPlaybackState();
       initialAppliedRef.current = true;
       return;
     }
 
-    // Otherwise restore room state only once
     if (room && !initialAppliedRef.current) {
       applyRoomPlaybackState(room, event.target);
       initialAppliedRef.current = true;
@@ -482,7 +525,7 @@ export const RoomPage = () => {
   const handlePlayerPlay = () => {
     if (isSyncingRef.current) return;
 
-    if (!isHost) {
+    if (!canControl) {
       isSyncingRef.current = true;
       playerRef.current?.pauseVideo();
 
@@ -506,7 +549,7 @@ export const RoomPage = () => {
 
   const handlePlayerPause = () => {
     if (isSyncingRef.current) return;
-    if (isHost) {
+    if (canControl) {
       const curTime = playerRef.current?.getCurrentTime ? playerRef.current.getCurrentTime() : 0;
       socket.emit('host-pause', { roomId, username: localUsername, currentTime: curTime });
     }
@@ -527,7 +570,9 @@ export const RoomPage = () => {
           <div className="p-3 bg-rose-500/10 text-rose-400 rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-4">
             <AlertCircle className="w-6 h-6" />
           </div>
-          <h2 className="text-xl font-bold text-white mb-2">Room Not Found</h2>
+          <h2 className="text-xl font-bold text-white mb-2">
+            {error?.includes('removed') ? 'Access Denied' : 'Room Not Found'}
+          </h2>
           <p className="text-slate-400 text-sm mb-6">{error || 'The requested watch party room does not exist.'}</p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link to="/">
@@ -606,7 +651,7 @@ export const RoomPage = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Player Area & Host Controls */}
+        {/* Main Player Area & Host/Moderator Controls */}
         <div className="lg:col-span-2 space-y-4">
           {currentVideoId ? (
             <YouTubePlayer
@@ -619,7 +664,7 @@ export const RoomPage = () => {
             <PlayerPlaceholder />
           )}
 
-          {isHost && (
+          {canControl && (
             <HostVideoControls
               roomId={room.roomId}
               onVideoLoaded={handleVideoLoaded}
@@ -633,57 +678,18 @@ export const RoomPage = () => {
             <p className="text-sm text-slate-400">
               {currentVideoId
                 ? 'Video loaded into player.'
-                : 'Host can paste a YouTube URL to load video for all participants.'}
+                : 'Host and Moderators can paste a YouTube URL to load video for all participants.'}
             </p>
           </Card>
         </div>
 
         {/* Sidebar / Participants */}
         <div className="space-y-4">
-          <Card
-            title={`Participants (${participants.length})`}
-            headerAction={<Users className="w-5 h-5 text-indigo-400" />}
-          >
-            <div className="space-y-3">
-              {participants.map((participant, index) => {
-                const participantIsHost = participant.role === 'Host';
-                const isCurrentUser = participant.username?.toLowerCase() === localUsername?.toLowerCase();
-                return (
-                  <div
-                    key={participant.socketId || index}
-                    className={`flex items-center justify-between p-3 rounded-xl border ${isCurrentUser
-                      ? 'bg-indigo-950/30 border-indigo-500/30'
-                      : 'bg-slate-800/50 border-slate-800/80'
-                      }`}
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div
-                        className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-white text-xs ${participantIsHost ? 'bg-indigo-600' : 'bg-slate-700'
-                          }`}
-                      >
-                        {participant.username ? participant.username.charAt(0).toUpperCase() : 'U'}
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-white flex items-center gap-1.5">
-                          {participant.username}
-                          {isCurrentUser && <span className="text-[10px] text-indigo-400 font-normal">(You)</span>}
-                          {participantIsHost && <Crown className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />}
-                        </p>
-                        <p className="text-[11px] text-slate-400">
-                          {participantIsHost ? 'Room Admin' : 'Participant'}
-                        </p>
-                      </div>
-                    </div>
-                    {participantIsHost && (
-                      <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                        Host
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </Card>
+          <ParticipantList
+            roomId={room.roomId}
+            participants={participants}
+            localUsername={localUsername}
+          />
         </div>
       </div>
     </div>

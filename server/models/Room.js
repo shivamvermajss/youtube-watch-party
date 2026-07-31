@@ -49,6 +49,10 @@ const roomSchema = new mongoose.Schema(
       default: false,
     },
     participants: [participantSchema],
+    removedParticipants: {
+      type: [String],
+      default: [],
+    },
   },
   {
     timestamps: true,
