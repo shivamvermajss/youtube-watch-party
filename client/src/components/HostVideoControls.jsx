@@ -6,6 +6,7 @@ import Loader from './Loader.jsx';
 import { updateRoomVideoApi } from '../services/api.js';
 import { extractYouTubeId } from '../utils/helpers.js';
 import { Video, AlertCircle, CheckCircle2, Link2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export const HostVideoControls = ({ roomId, onVideoLoaded }) => {
   const [videoInput, setVideoInput] = useState('');
@@ -20,6 +21,7 @@ export const HostVideoControls = ({ roomId, onVideoLoaded }) => {
 
     const trimmedInput = videoInput.trim();
     if (!trimmedInput) {
+      toast.warning('Load a YouTube video first.');
       setError('Please enter a YouTube video URL or Video ID.');
       return;
     }
@@ -27,6 +29,7 @@ export const HostVideoControls = ({ roomId, onVideoLoaded }) => {
     const videoId = extractYouTubeId(trimmedInput);
 
     if (!videoId) {
+      toast.error('Unable to load YouTube video.');
       setError('Invalid YouTube URL or Video ID. Please check the link and try again.');
       return;
     }
@@ -37,14 +40,17 @@ export const HostVideoControls = ({ roomId, onVideoLoaded }) => {
       if (res.success) {
         setVideoInput('');
         setSuccessMsg('Video loaded successfully!');
+        toast.success('Video synchronized successfully.');
         if (onVideoLoaded) {
           onVideoLoaded(videoId, res.data);
         }
         setTimeout(() => setSuccessMsg(''), 3000);
       } else {
+        toast.error('Unable to load YouTube video.');
         setError(res.message || 'Failed to update video.');
       }
     } catch (err) {
+      toast.error('Unable to load YouTube video.');
       const msg = err.response?.data?.message || err.message || 'Network error. Failed to load video.';
       setError(msg);
     } finally {

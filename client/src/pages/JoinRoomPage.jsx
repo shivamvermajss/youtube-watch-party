@@ -7,6 +7,7 @@ import Loader from '../components/Loader.jsx';
 import { joinRoomApi } from '../services/api.js';
 import { saveUserData, getUserData } from '../utils/helpers.js';
 import { LogIn, Users, AlertCircle, KeyRound } from 'lucide-react';
+import { toast } from 'sonner';
 
 export const JoinRoomPage = () => {
   const [roomCode, setRoomCode] = useState('');
@@ -45,11 +46,14 @@ export const JoinRoomPage = () => {
 
       if (res.success && res.data?.roomId) {
         saveUserData(trimmedName, res.data.roomId);
+        toast.success('Joined room successfully.');
         navigate(`/room/${res.data.roomId}`);
       } else {
+        toast.error('Unable to join room.');
         setError(res.message || 'Failed to join room. Please check the room code.');
       }
     } catch (err) {
+      toast.error('Unable to join room.');
       const msg = err.response?.data?.message || err.message || 'Failed to join room. Please try again.';
       setError(msg);
     } finally {

@@ -7,6 +7,7 @@ import Loader from '../components/Loader.jsx';
 import { createRoomApi } from '../services/api.js';
 import { saveUserData, getUserData } from '../utils/helpers.js';
 import { Tv, Plus, Sparkles, AlertCircle, ShieldCheck, Zap, Users } from 'lucide-react';
+import { toast } from 'sonner';
 
 export const HomePage = () => {
   const [username, setUsername] = useState('');
@@ -38,6 +39,7 @@ export const HomePage = () => {
       if (res.success && res.data?.roomId) {
         const createdRoomId = res.data.roomId;
         saveUserData(trimmedName, createdRoomId);
+        toast.success('Watch party created successfully.');
         navigate(`/room/${createdRoomId}`);
       } else {
         setError(res.message || 'Failed to create room. Please try again.');

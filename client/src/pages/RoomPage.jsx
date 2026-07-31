@@ -11,7 +11,8 @@ import { getRoomApi } from '../services/api.js';
 import socket from '../services/socketService.js';
 import { getUserData } from '../utils/helpers.js';
 import { canControlPlayback } from '../utils/permissions.js';
-import { AlertCircle, Home, Wifi, WifiOff, Copy, Check, Play, Pause, Crown, ShieldCheck, User, Tv } from 'lucide-react';
+import { AlertCircle, Home, Copy, Check, Play, Pause, Crown, ShieldCheck, User, Tv } from 'lucide-react';
+import { toast } from 'sonner';
 
 export const RoomPage = () => {
   const { roomId } = useParams();
@@ -28,6 +29,7 @@ export const RoomPage = () => {
   const initialAppliedRef = useRef(false);
   const lastTimeRef = useRef(0);
   const pendingPlaybackStateRef = useRef(null);
+  const wasDisconnectedRef = useRef(false);
 
   const applyRoomPlaybackState = (roomData, player) => {
     if (!roomData || !player) return;
@@ -136,6 +138,7 @@ export const RoomPage = () => {
           if (isRemoved) {
             setRoom(null);
             setError('You have been removed from this room by the host.');
+            toast.error('Room does not exist.');
             return;
           }
 
@@ -145,10 +148,12 @@ export const RoomPage = () => {
           }
         } else {
           setError(res.message || 'Room not found.');
+          toast.error('Room does not exist.');
         }
       } catch (err) {
         const msg = err.response?.data?.message || err.message || 'Failed to load room details.';
         setError(msg);
+        toast.error('Room does not exist.');
       } finally {
         setLoading(false);
       }
@@ -182,6 +187,10 @@ export const RoomPage = () => {
     };
 
     const handleConnect = () => {
+      if (wasDisconnectedRef.current) {
+        toast.info('Reconnected successfully.');
+        wasDisconnectedRef.current = false;
+      }
       socket.emit('join-room', joinPayload);
     };
 
@@ -210,12 +219,18 @@ export const RoomPage = () => {
       if (data?.room) {
         setRoom(data.room);
       }
+      if (data?.username && data.username.toLowerCase() !== localUsername?.toLowerCase()) {
+        toast.info(`${data.username} joined the watch party.`);
+      }
     };
 
     // Event: user-left
     const handleUserLeft = (data) => {
       if (data?.room) {
         setRoom(data.room);
+      }
+      if (data?.username && data.username.toLowerCase() !== localUsername?.toLowerCase()) {
+        toast.info(`${data.username} left the watch party.`);
       }
     };
 
@@ -226,6 +241,11 @@ export const RoomPage = () => {
       } else if (data?.room) {
         setRoom(data.room);
       }
+      if (data?.role === 'Moderator') {
+        toast.success('Participant promoted to Moderator.');
+      } else if (data?.role === 'Participant') {
+        toast.success('Moderator changed back to Participant.');
+      }
     };
 
     // Event: participant-removed
@@ -235,6 +255,7 @@ export const RoomPage = () => {
         setSocketError('You have been removed from the room by the host.');
         setRoom(null);
         setError('You have been removed from this room by the host.');
+        toast.error('You have been removed from the room.');
         return;
       }
       if (data?.participants) {
@@ -242,6 +263,7 @@ export const RoomPage = () => {
       } else if (data?.room) {
         setRoom(data.room);
       }
+      toast.success('Participant removed from room.');
     };
 
     // Event: room-access-denied
@@ -251,6 +273,7 @@ export const RoomPage = () => {
       setSocketError(msg);
       setRoom(null);
       setError(msg);
+      toast.error('Room does not exist.');
     };
 
     // Event: request-playback-state (Host receives this when a new participant joins/refreshes)
@@ -377,16 +400,21 @@ export const RoomPage = () => {
     const handleSocketError = (err) => {
       setSocketConnecting(false);
       setSocketError(err?.message || 'Socket room error.');
+      toast.error('Room does not exist.');
     };
 
     const handleConnectError = () => {
       setSocketConnecting(false);
       setSocketError('Failed to connect to real-time server.');
+      wasDisconnectedRef.current = true;
+      toast.error('Connection to server lost.');
     };
 
     const handleDisconnect = (reason) => {
       if (reason === 'io server disconnect' || reason === 'transport close') {
         setSocketError('Disconnected from watch party server.');
+        wasDisconnectedRef.current = true;
+        toast.error('Connection to server lost.');
       }
     };
 
@@ -482,6 +510,7 @@ export const RoomPage = () => {
     try {
       await navigator.clipboard.writeText(roomId);
       setCopied(true);
+      toast.success('Room code copied to clipboard.');
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('Failed to copy room code:', err);
@@ -528,11 +557,17 @@ export const RoomPage = () => {
     if (!canControl) {
       isSyncingRef.current = true;
       playerRef.current?.pauseVideo();
+      toast.warning("You don't have permission for this action.");
 
       setTimeout(() => {
         isSyncingRef.current = false;
       }, 300);
 
+      return;
+    }
+
+    if (!currentVideoId) {
+      toast.warning('Load a YouTube video first.');
       return;
     }
 
