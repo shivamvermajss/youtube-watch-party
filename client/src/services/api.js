@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// Updated to point to your live Render backend
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://youtube-watch-party-rf6i.onrender.com/api';
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
