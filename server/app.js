@@ -12,6 +12,15 @@ app.use(cors(getCorsOptions()));
 app.use(express.json());
 app.use(loggerMiddleware);
 
+
+// Root Route
+app.get('/', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'Welcome to the YouTube Watch Party API!',
+  });
+});
+
 // Health Check Route
 app.get('/api/health', (req, res) => {
   res.status(200).json({
