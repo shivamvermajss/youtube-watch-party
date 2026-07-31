@@ -19,7 +19,7 @@ export const YouTubePlayer = ({ videoId, onReady, onPlay, onPause }) => {
   };
 
   return (
-    <div className="w-full aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl border border-slate-800">
+    <div className="w-full aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl shadow-indigo-950/40 border border-slate-800 transition-all duration-300">
       <YouTube
         key={videoId}
         videoId={videoId}

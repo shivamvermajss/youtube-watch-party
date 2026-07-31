@@ -11,7 +11,7 @@ import { getRoomApi } from '../services/api.js';
 import socket from '../services/socketService.js';
 import { getUserData } from '../utils/helpers.js';
 import { canControlPlayback } from '../utils/permissions.js';
-import { AlertCircle, Home, Wifi, WifiOff, Copy, Check } from 'lucide-react';
+import { AlertCircle, Home, Wifi, WifiOff, Copy, Check, Play, Pause, Crown, ShieldCheck, User, Tv } from 'lucide-react';
 
 export const RoomPage = () => {
   const { roomId } = useParams();
@@ -603,47 +603,52 @@ export const RoomPage = () => {
       )}
 
       {/* Top Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-lg">
-        <div className="space-y-1">
-          <div className="flex items-center space-x-3">
-            <span className="text-xs font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-slate-900/90 via-slate-900/80 to-indigo-950/40 p-5 rounded-2xl border border-slate-800/90 backdrop-blur-xl shadow-2xl">
+        <div className="space-y-1.5">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-[11px] font-extrabold uppercase tracking-wider px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/30 shadow-sm">
               Room Code
             </span>
-            <h2 className="text-2xl font-bold text-white font-mono tracking-wider">{room.roomId}</h2>
+            <h2 className="text-2xl sm:text-3xl font-black text-white font-mono tracking-widest text-indigo-400 bg-slate-950/80 px-3.5 py-0.5 rounded-xl border border-indigo-500/30 shadow-inner">
+              {room.roomId}
+            </h2>
             {socketConnecting ? (
-              <span className="inline-flex items-center text-xs text-amber-400 font-medium px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20">
+              <span className="inline-flex items-center text-xs font-semibold text-amber-400 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30">
                 <Loader size="sm" />
-                <span className="ml-1">Connecting...</span>
+                <span className="ml-1.5">Connecting...</span>
               </span>
             ) : socketError ? (
-              <span className="inline-flex items-center text-xs text-rose-400 font-medium px-2.5 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/20">
-                <WifiOff className="w-3 h-3 mr-1" />
+              <span className="inline-flex items-center text-xs font-semibold text-rose-400 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/30">
+                <span className="h-2 w-2 rounded-full bg-rose-500 mr-2"></span>
                 Disconnected
               </span>
             ) : (
-              <span className="inline-flex items-center text-xs text-emerald-400 font-medium px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                <Wifi className="w-3 h-3 mr-1" />
+              <span className="inline-flex items-center text-xs font-semibold text-emerald-400 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 shadow-sm">
+                <span className="relative flex h-2 w-2 mr-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
                 Connected
               </span>
             )}
           </div>
-          <p className="text-xs text-slate-400">Share this code with your friends to watch together in real time.</p>
+          <p className="text-xs text-slate-400">Share this code with your friends to watch YouTube together in sync.</p>
         </div>
 
         <Button
           onClick={handleCopyCode}
           variant={copied ? 'outline' : 'secondary'}
           size="sm"
-          className="self-start sm:self-auto min-w-[120px]"
+          className="self-start sm:self-auto min-w-[130px]"
         >
           {copied ? (
             <>
               <Check className="w-4 h-4 mr-2 text-emerald-400" />
-              <span className="text-emerald-400">Copied!</span>
+              <span className="text-emerald-400 font-bold">Copied!</span>
             </>
           ) : (
             <>
-              <Copy className="w-4 h-4 mr-2" />
+              <Copy className="w-4 h-4 mr-2 text-indigo-400" />
               <span>Copy Code</span>
             </>
           )}
@@ -673,13 +678,56 @@ export const RoomPage = () => {
 
           <Card
             title="Now Playing"
-            subtitle={currentVideoId ? `Video ID: ${currentVideoId}` : 'No video currently playing'}
+            subtitle="Current playback session status and video details"
+            headerAction={<Tv className="w-5 h-5 text-indigo-400" />}
           >
-            <p className="text-sm text-slate-400">
-              {currentVideoId
-                ? 'Video loaded into player.'
-                : 'Host and Moderators can paste a YouTube URL to load video for all participants.'}
-            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+              <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800/80 space-y-1">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Video ID</span>
+                <p className="text-sm font-mono font-bold text-white truncate">
+                  {currentVideoId || 'None'}
+                </p>
+              </div>
+
+              <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800/80 space-y-1">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Playback Status</span>
+                <div>
+                  {currentVideoId ? (
+                    <span className="inline-flex items-center text-xs font-semibold text-emerald-400 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                      <Play className="w-3 h-3 mr-1 fill-emerald-400" />
+                      Active Stream
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center text-xs font-semibold text-amber-400 px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20">
+                      <Pause className="w-3 h-3 mr-1 fill-amber-400" />
+                      Waiting Video
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800/80 space-y-1">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Your Role</span>
+                <div>
+                  {isHost ? (
+                    <span className="inline-flex items-center text-xs font-bold text-amber-300 px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30">
+                      <Crown className="w-3 h-3 mr-1 text-amber-400 fill-amber-400" />
+                      Host
+                    </span>
+                  ) : currentParticipant?.role === 'Moderator' ? (
+                    <span className="inline-flex items-center text-xs font-bold text-blue-300 px-2.5 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/30">
+                      <ShieldCheck className="w-3 h-3 mr-1 text-blue-400" />
+                      Moderator
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center text-xs font-medium text-slate-300 px-2.5 py-0.5 rounded-full bg-slate-800 border border-slate-700">
+                      <User className="w-3 h-3 mr-1 text-slate-400" />
+                      Participant
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
           </Card>
         </div>
 

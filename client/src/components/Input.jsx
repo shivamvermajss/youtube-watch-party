@@ -14,7 +14,7 @@ export const Input = ({
   return (
     <div className="w-full flex flex-col space-y-1.5 text-left">
       {label && (
-        <label className="text-sm font-medium text-slate-300">
+        <label className="text-xs font-semibold uppercase tracking-wider text-slate-300">
           {label} {required && <span className="text-rose-400">*</span>}
         </label>
       )}
@@ -24,12 +24,12 @@ export const Input = ({
         onChange={onChange}
         placeholder={placeholder}
         required={required}
-        className={`w-full px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors ${
-          error ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500' : ''
+        className={`w-full px-4 py-3 bg-slate-950/80 border border-slate-800/90 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all duration-200 ${
+          error ? 'border-rose-500/80 focus:border-rose-500 focus:ring-rose-500/20' : ''
         } ${className}`}
         {...props}
       />
-      {error && <p className="text-xs text-rose-400 mt-1">{error}</p>}
+      {error && <p className="text-xs text-rose-400 mt-1 font-medium">{error}</p>}
     </div>
   );
 };

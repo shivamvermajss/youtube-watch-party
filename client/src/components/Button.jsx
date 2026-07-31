@@ -10,19 +10,24 @@ export const Button = ({
   className = '',
   ...props
 }) => {
-  const baseStyles = 'inline-flex items-center justify-center font-medium rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-950 disabled:opacity-50 disabled:cursor-not-allowed';
+  const baseStyles =
+    'inline-flex items-center justify-center font-semibold rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-950 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none select-none';
 
   const variants = {
-    primary: 'bg-indigo-600 hover:bg-indigo-500 text-white focus:ring-indigo-500 shadow-md shadow-indigo-600/20',
-    secondary: 'bg-slate-800 hover:bg-slate-700 text-slate-200 focus:ring-slate-600 border border-slate-700',
-    outline: 'border border-indigo-500/50 text-indigo-400 hover:bg-indigo-500/10 focus:ring-indigo-500',
-    danger: 'bg-rose-600 hover:bg-rose-500 text-white focus:ring-rose-500 shadow-md shadow-rose-600/20',
+    primary:
+      'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-lg shadow-indigo-600/25 border border-indigo-500/30 hover:shadow-indigo-500/35 hover:-translate-y-0.5',
+    secondary:
+      'bg-slate-800/90 hover:bg-slate-700/90 text-slate-200 border border-slate-700/80 shadow-md hover:border-slate-600 hover:-translate-y-0.5',
+    outline:
+      'bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 hover:text-white shadow-sm hover:-translate-y-0.5',
+    danger:
+      'bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white shadow-lg shadow-rose-600/25 border border-rose-500/30 hover:shadow-rose-500/35 hover:-translate-y-0.5',
   };
 
   const sizes = {
-    sm: 'px-3 py-1.5 text-sm',
-    md: 'px-4 py-2.5 text-base',
-    lg: 'px-6 py-3.5 text-lg font-semibold',
+    sm: 'px-3 py-1.5 text-xs font-semibold',
+    md: 'px-4 py-2.5 text-sm font-semibold',
+    lg: 'px-6 py-3.5 text-base font-bold',
   };
 
   return (

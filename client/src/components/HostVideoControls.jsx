@@ -5,7 +5,7 @@ import Button from './Button.jsx';
 import Loader from './Loader.jsx';
 import { updateRoomVideoApi } from '../services/api.js';
 import { extractYouTubeId } from '../utils/helpers.js';
-import { Video, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Video, AlertCircle, CheckCircle2, Link2 } from 'lucide-react';
 
 export const HostVideoControls = ({ roomId, onVideoLoaded }) => {
   const [videoInput, setVideoInput] = useState('');
@@ -54,30 +54,30 @@ export const HostVideoControls = ({ roomId, onVideoLoaded }) => {
 
   return (
     <Card
-      title="Host Controls"
-      subtitle="Paste a YouTube link or Video ID to load video for all participants"
+      title="Playback Controls"
+      subtitle="Paste a YouTube video URL or Video ID to sync for all participants"
       headerAction={<Video className="w-5 h-5 text-indigo-400" />}
     >
       <form onSubmit={handleLoadVideo} className="space-y-3">
         {error && (
-          <div className="flex items-center space-x-2 p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-400 text-sm">
+          <div className="flex items-center space-x-2 p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-400 text-sm shadow-sm animate-fade-in">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            <span>{error}</span>
+            <span className="font-medium">{error}</span>
           </div>
         )}
 
         {successMsg && (
-          <div className="flex items-center space-x-2 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-sm">
+          <div className="flex items-center space-x-2 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-sm shadow-sm animate-fade-in">
             <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-            <span>{successMsg}</span>
+            <span className="font-medium">{successMsg}</span>
           </div>
         )}
 
         <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
           <div className="flex-1 w-full">
             <Input
-              label="YouTube URL or Video ID"
-              placeholder="e.g. https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+              label="YouTube Video Link or ID"
+              placeholder="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
               value={videoInput}
               onChange={(e) => {
                 setVideoInput(e.target.value);
@@ -96,7 +96,7 @@ export const HostVideoControls = ({ roomId, onVideoLoaded }) => {
               <Loader size="sm" text="Loading..." />
             ) : (
               <>
-                <Video className="w-4 h-4 mr-2" />
+                <Link2 className="w-4 h-4 mr-2" />
                 Load Video
               </>
             )}

@@ -6,7 +6,7 @@ import Button from '../components/Button.jsx';
 import Loader from '../components/Loader.jsx';
 import { createRoomApi } from '../services/api.js';
 import { saveUserData, getUserData } from '../utils/helpers.js';
-import { Tv, Plus, Sparkles, AlertCircle } from 'lucide-react';
+import { Tv, Plus, Sparkles, AlertCircle, ShieldCheck, Zap, Users } from 'lucide-react';
 
 export const HomePage = () => {
   const [username, setUsername] = useState('');
@@ -51,31 +51,54 @@ export const HomePage = () => {
   };
 
   return (
-    <div className="max-w-xl mx-auto py-10">
-      <div className="text-center mb-8">
-        <div className="inline-flex p-3 bg-indigo-500/10 rounded-2xl text-indigo-400 mb-4 border border-indigo-500/20">
-          <Tv className="w-10 h-10" />
+    <div className="max-w-2xl mx-auto py-8 sm:py-12 px-4 space-y-8">
+      {/* Hero Section */}
+      <div className="text-center space-y-4">
+        <div className="inline-flex p-4 bg-gradient-to-tr from-indigo-600 to-purple-600 rounded-3xl text-white shadow-xl shadow-indigo-600/30 border border-indigo-400/20 mb-2 transform hover:scale-105 transition-transform duration-300">
+          <Tv className="w-12 h-12" />
         </div>
-        <h1 className="text-3xl font-extrabold text-white tracking-tight">
-          Create Watch Party Room
+
+        <h1 className="text-4xl sm:text-5xl font-black text-white tracking-tight leading-tight">
+          Watch YouTube Together{' '}
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400">
+            In Real Time
+          </span>
         </h1>
-        <p className="mt-2 text-slate-400">
-          Start a new room and invite your friends to watch YouTube videos together.
+
+        <p className="text-slate-400 text-base sm:text-lg max-w-lg mx-auto leading-relaxed">
+          Create a private watch party room, invite friends with a code, and enjoy instant synchronized playback.
         </p>
+
+        {/* Feature Badges */}
+        <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+          <span className="inline-flex items-center text-xs font-semibold px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-slate-300">
+            <Zap className="w-3.5 h-3.5 text-indigo-400 mr-1.5" />
+            Sub-second Sync
+          </span>
+          <span className="inline-flex items-center text-xs font-semibold px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-slate-300">
+            <ShieldCheck className="w-3.5 h-3.5 text-purple-400 mr-1.5" />
+            Role Permissions
+          </span>
+          <span className="inline-flex items-center text-xs font-semibold px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-slate-300">
+            <Users className="w-3.5 h-3.5 text-emerald-400 mr-1.5" />
+            Multi-user Rooms
+          </span>
+        </div>
       </div>
 
-      <Card title="Room Details" subtitle="Set up your watch party session">
-        <form onSubmit={handleCreateRoom} className="space-y-4">
+      {/* Main Form Card */}
+      <Card title="Start a Watch Party" subtitle="Enter your display name to create a room as Host">
+        <form onSubmit={handleCreateRoom} className="space-y-5">
           {error && (
-            <div className="flex items-center space-x-2 p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-400 text-sm">
+            <div className="flex items-center space-x-2 p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-400 text-sm shadow-sm">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              <span>{error}</span>
+              <span className="font-medium">{error}</span>
             </div>
           )}
 
           <Input
             label="Your Display Name"
-            placeholder="Enter your name (e.g., Alex)"
+            placeholder="Enter your name (e.g. Alex)"
             value={username}
             onChange={(e) => {
               setUsername(e.target.value);
@@ -85,20 +108,20 @@ export const HomePage = () => {
             disabled={loading}
           />
 
-          <Button type="submit" variant="primary" size="lg" className="w-full" disabled={loading}>
+          <Button type="submit" variant="primary" size="lg" className="w-full shadow-xl" disabled={loading}>
             {loading ? (
               <Loader size="sm" text="Creating Room..." />
             ) : (
               <>
                 <Plus className="w-5 h-5 mr-2" />
-                Create New Room
+                Create New Watch Party
               </>
             )}
           </Button>
 
-          <div className="pt-2 text-center text-xs text-slate-500 flex items-center justify-center space-x-1">
+          <div className="pt-1 text-center text-xs text-slate-500 flex items-center justify-center space-x-1">
             <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-            <span>Room code will be generated automatically</span>
+            <span>A unique 6-character room code will be generated</span>
           </div>
         </form>
       </Card>
