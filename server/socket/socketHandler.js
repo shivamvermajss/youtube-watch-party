@@ -11,6 +11,42 @@ import {
 // Key: `${roomId}_${username.toLowerCase()}` -> Timeout ID
 const disconnectTimeouts = new Map();
 
+// In-memory store for Room Chat History (Max 100 messages per room)
+// Key: `roomId` -> Array of message objects
+const roomMessages = new Map();
+
+/**
+ * Add a new chat message to room memory
+ */
+const addRoomChatMessage = (roomId, username, text) => {
+  if (!roomId || !username || !text) return null;
+  const trimmedText = text.trim();
+  if (!trimmedText) return null;
+
+  if (!roomMessages.has(roomId)) {
+    roomMessages.set(roomId, []);
+  }
+  const history = roomMessages.get(roomId);
+  const message = {
+    id: `${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+    username: username.trim(),
+    text: trimmedText,
+    timestamp: new Date().toISOString(),
+  };
+  history.push(message);
+  if (history.length > 100) {
+    history.shift(); // Capped at latest 100 messages per room
+  }
+  return message;
+};
+
+/**
+ * Get room chat history
+ */
+const getRoomChatHistory = (roomId) => {
+  return roomMessages.get(roomId) || [];
+};
+
 /**
  * Cancel pending disconnect timeout for a user in a room if they reconnected
  */
@@ -55,6 +91,7 @@ const scheduleUserLeave = (io, roomId, username) => {
       if (room.participants.length === 0) {
         // Delete room if all participants left
         await Room.deleteOne({ _id: room._id });
+        roomMessages.delete(roomId); // Clean up in-memory chat
         console.log(`[Socket] Room Deleted: ${roomId} (all participants left)`);
       } else {
         // Transfer Host to oldest participant if the Host disconnected permanently
@@ -217,6 +254,11 @@ export const initializeSocket = (io) => {
           room,
         });
 
+        // Emit chat history to joining participant
+        socket.emit('chat-history', {
+          messages: getRoomChatHistory(room.roomId),
+        });
+
         // Request live playback state from Host if Host is active in room (and is not the joining user)
         const activeHost = room.participants.find(
           (p) => p.role === 'Host' && p.socketId !== socket.id
@@ -241,6 +283,41 @@ export const initializeSocket = (io) => {
           success: false,
           message: 'Internal server error while joining room',
         });
+      }
+    });
+
+    // Dedicated Event: send-chat-message
+    socket.on('send-chat-message', (data) => {
+      try {
+        const { roomId, username, text } = data || {};
+        if (!roomId || !username || !text) {
+          return socket.emit('chat-error', { message: 'Failed to send message.' });
+        }
+
+        const message = addRoomChatMessage(roomId, username, text);
+        if (!message) {
+          return socket.emit('chat-error', { message: 'Failed to send message.' });
+        }
+
+        // Broadcast new message to all participants in the room
+        io.to(roomId).emit('new-message', message);
+      } catch (error) {
+        console.error(`[Socket Error] Error in send-chat-message: ${error.message}`);
+        socket.emit('chat-error', { message: 'Failed to send message.' });
+      }
+    });
+
+    // Dedicated Event: get-chat-history
+    socket.on('get-chat-history', (data) => {
+      try {
+        const { roomId } = data || {};
+        if (roomId) {
+          socket.emit('chat-history', {
+            messages: getRoomChatHistory(roomId),
+          });
+        }
+      } catch (error) {
+        console.error(`[Socket Error] Error in get-chat-history: ${error.message}`);
       }
     });
 

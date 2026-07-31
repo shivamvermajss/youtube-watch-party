@@ -7,6 +7,7 @@ import { PlayerPlaceholder } from '../components/PlayerPlaceholder.jsx';
 import YouTubePlayer from '../components/YouTubePlayer.jsx';
 import HostVideoControls from '../components/HostVideoControls.jsx';
 import ParticipantList from '../components/ParticipantList.jsx';
+import RoomChat from '../components/RoomChat.jsx';
 import {
   PlayerSkeleton,
   RoomHeaderSkeleton,
@@ -733,11 +734,15 @@ export const RoomPage = () => {
           )}
         </div>
 
-        {/* 2. Participants Section (Mobile: Order 2, Desktop: Right Column) */}
+        {/* 2. Participants Section & Room Chat (Mobile: Order 2, Desktop: Right Column) */}
         <div className="order-2 lg:order-none lg:col-span-1 lg:row-span-3 space-y-4">
           <ParticipantList
             roomId={room.roomId}
             participants={participants}
+            localUsername={localUsername}
+          />
+          <RoomChat
+            roomId={room.roomId}
             localUsername={localUsername}
           />
         </div>
