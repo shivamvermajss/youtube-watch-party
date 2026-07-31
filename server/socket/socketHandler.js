@@ -195,12 +195,216 @@ export const initializeSocket = (io) => {
           socketId: socket.id,
           room,
         });
+
+        // Request live playback state from Host if Host is active in room (and is not the joining user)
+        const activeHost = room.participants.find(
+          (p) => p.role === 'Host' && p.socketId !== socket.id
+        );
+
+        if (activeHost && activeHost.socketId) {
+          io.to(activeHost.socketId).emit('request-playback-state', {
+            requesterSocketId: socket.id,
+            roomId: room.roomId,
+          });
+        } else {
+          // Fallback to room DB playback state
+          socket.emit('sync-playback-state', {
+            currentVideoId: room.currentVideoId,
+            currentTime: room.currentTime,
+            isPlaying: room.isPlaying,
+          });
+        }
       } catch (error) {
         console.error(`[Socket Error] Error in join-room: ${error.message}`);
         socket.emit('error', {
           success: false,
           message: 'Internal server error while joining room',
         });
+      }
+    });
+
+    // Event: playback-state (Sent by Host in response to request-playback-state)
+    socket.on('playback-state', async (data) => {
+      try {
+        const { roomId, requesterSocketId, currentVideoId, currentTime, isPlaying } = data || {};
+        if (!roomId || !requesterSocketId) return;
+
+        const room = await findRoomByRoomId(roomId);
+        if (room) {
+          if (currentVideoId) room.currentVideoId = currentVideoId;
+          if (typeof currentTime === 'number') room.currentTime = currentTime;
+          if (typeof isPlaying === 'boolean') room.isPlaying = isPlaying;
+          await room.save();
+        }
+
+        // Send live Host playback state to the joining/refreshing participant
+        io.to(requesterSocketId).emit('sync-playback-state', {
+          currentVideoId: currentVideoId || room?.currentVideoId || '',
+          currentTime: typeof currentTime === 'number' ? currentTime : (room?.currentTime || 0),
+          isPlaying: typeof isPlaying === 'boolean' ? isPlaying : (room?.isPlaying || false),
+        });
+      } catch (error) {
+        console.error(`[Socket Error] Error in playback-state: ${error.message}`);
+      }
+    });
+
+    // Event: host-video-change
+    socket.on('host-video-change', async (data) => {
+      try {
+        const { roomId, username, videoId, currentTime, isPlaying } = data || {};
+        if (!roomId || !username || !videoId) return;
+
+        const room = await findRoomByRoomId(roomId);
+        if (!room) return;
+
+        const trimmedUsername = username.trim();
+        const isHost =
+          (room.hostUsername && room.hostUsername.toLowerCase() === trimmedUsername.toLowerCase()) ||
+          room.participants.some((p) => p.socketId === socket.id && p.role === 'Host');
+
+        if (!isHost) {
+          console.warn(`[Socket Warning] Non-host user ${trimmedUsername} attempted host-video-change in ${roomId}`);
+          return;
+        }
+
+        room.currentVideoId = videoId.trim();
+        room.currentTime = typeof currentTime === 'number' ? currentTime : 0;
+        room.isPlaying = typeof isPlaying === 'boolean' ? isPlaying : true;
+        await room.save();
+
+        // Broadcast video-changed to all participants in the room
+        socket.to(room.roomId).emit('video-changed', {
+          videoId: room.currentVideoId,
+          currentTime: room.currentTime,
+          isPlaying: room.isPlaying,
+        });
+
+        console.log(`[Socket] Video change broadcasted in room ${roomId} to ${videoId} by Host ${trimmedUsername}`);
+      } catch (error) {
+        console.error(`[Socket Error] Error in host-video-change: ${error.message}`);
+      }
+    });
+
+    // Event: host-play
+    socket.on('host-play', async (data) => {
+      try {
+        const { roomId, username, currentTime } = data || {};
+        if (!roomId || !username) return;
+
+        const room = await findRoomByRoomId(roomId);
+        if (!room) return;
+
+        const trimmedUsername = username.trim();
+        const isHost =
+          (room.hostUsername && room.hostUsername.toLowerCase() === trimmedUsername.toLowerCase()) ||
+          room.participants.some((p) => p.socketId === socket.id && p.role === 'Host');
+
+        if (!isHost) {
+          console.warn(`[Socket Warning] Non-host user ${trimmedUsername} attempted host-play in ${roomId}`);
+          return;
+        }
+
+        room.isPlaying = true;
+        if (typeof currentTime === 'number') {
+          room.currentTime = currentTime;
+        }
+        await room.save();
+
+        socket.to(room.roomId).emit('sync-play', { currentTime: room.currentTime });
+        console.log(`[Socket] Sync Play broadcasted in room ${roomId} by Host ${trimmedUsername}`);
+      } catch (error) {
+        console.error(`[Socket Error] Error in host-play: ${error.message}`);
+      }
+    });
+
+    // Event: host-pause
+    socket.on('host-pause', async (data) => {
+      try {
+        const { roomId, username, currentTime } = data || {};
+        if (!roomId || !username) return;
+
+        const room = await findRoomByRoomId(roomId);
+        if (!room) return;
+
+        const trimmedUsername = username.trim();
+        const isHost =
+          (room.hostUsername && room.hostUsername.toLowerCase() === trimmedUsername.toLowerCase()) ||
+          room.participants.some((p) => p.socketId === socket.id && p.role === 'Host');
+
+        if (!isHost) {
+          console.warn(`[Socket Warning] Non-host user ${trimmedUsername} attempted host-pause in ${roomId}`);
+          return;
+        }
+
+        room.isPlaying = false;
+        if (typeof currentTime === 'number') {
+          room.currentTime = currentTime;
+        }
+        await room.save();
+
+        socket.to(room.roomId).emit('sync-pause', { currentTime: room.currentTime });
+        console.log(`[Socket] Sync Pause broadcasted in room ${roomId} by Host ${trimmedUsername}`);
+      } catch (error) {
+        console.error(`[Socket Error] Error in host-pause: ${error.message}`);
+      }
+    });
+
+    // Event: host-seek
+    socket.on('host-seek', async (data) => {
+      try {
+        const { roomId, username, currentTime } = data || {};
+        if (!roomId || !username || typeof currentTime !== 'number') return;
+
+        const room = await findRoomByRoomId(roomId);
+        if (!room) return;
+
+        const trimmedUsername = username.trim();
+        const isHost =
+          (room.hostUsername && room.hostUsername.toLowerCase() === trimmedUsername.toLowerCase()) ||
+          room.participants.some((p) => p.socketId === socket.id && p.role === 'Host');
+
+        if (!isHost) {
+          console.warn(`[Socket Warning] Non-host user ${trimmedUsername} attempted host-seek in ${roomId}`);
+          return;
+        }
+
+        room.currentTime = currentTime;
+        await room.save();
+
+        socket.to(room.roomId).emit('sync-seek', {
+          currentTime,
+          isPlaying: room.isPlaying,
+        });
+
+        console.log(`[Socket] Sync Seek broadcasted in room ${roomId} to time ${currentTime} by Host ${trimmedUsername}`);
+      } catch (error) {
+        console.error(`[Socket Error] Error in host-seek: ${error.message}`);
+      }
+    });
+
+    // Event: playback-state-update (Heartbeat from Host every 2-3s)
+    socket.on('playback-state-update', async (data) => {
+      try {
+        const { roomId, username, currentTime, isPlaying } = data || {};
+        if (!roomId || !username || typeof currentTime !== 'number') return;
+
+        const room = await findRoomByRoomId(roomId);
+        if (!room) return;
+
+        const trimmedUsername = username.trim();
+        const isHost =
+          (room.hostUsername && room.hostUsername.toLowerCase() === trimmedUsername.toLowerCase()) ||
+          room.participants.some((p) => p.socketId === socket.id && p.role === 'Host');
+
+        if (!isHost) return;
+
+        room.currentTime = currentTime;
+        if (typeof isPlaying === 'boolean') {
+          room.isPlaying = isPlaying;
+        }
+        await room.save();
+      } catch (error) {
+        console.error(`[Socket Error] Error in playback-state-update: ${error.message}`);
       }
     });
 

@@ -206,6 +206,8 @@ export const updateRoomVideo = async (req, res, next) => {
     }
 
     room.currentVideoId = String(videoId).trim();
+    room.currentTime = 0;
+    room.isPlaying = false;
     await room.save();
 
     return res.status(200).json({

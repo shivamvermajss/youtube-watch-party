@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Card from '../components/Card.jsx';
 import Button from '../components/Button.jsx';
@@ -20,6 +20,106 @@ export const RoomPage = () => {
   const [socketError, setSocketError] = useState('');
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+
+  const playerRef = useRef(null);
+  const isSyncingRef = useRef(false);
+  const initialAppliedRef = useRef(false);
+  const lastTimeRef = useRef(0);
+  const pendingPlaybackStateRef = useRef(null);
+
+  const applyRoomPlaybackState = (roomData, player) => {
+    if (!roomData || !player) return;
+
+    const { currentTime, isPlaying } = roomData;
+
+    isSyncingRef.current = true;
+
+    try {
+      if (typeof currentTime === "number" && currentTime > 0) {
+        player.seekTo(currentTime, true);
+      }
+
+      setTimeout(() => {
+        try {
+          if (isPlaying) {
+            player.playVideo();
+            setTimeout(() => { isSyncingRef.current = false; }, 300);
+          } else {
+            // FIX: Briefly play to force YouTube to render the frame, then pause.
+            player.playVideo();
+            setTimeout(() => {
+              player.pauseVideo();
+              isSyncingRef.current = false;
+            }, 400); // 400ms gives the iframe enough time to grab the visual frame
+          }
+        } catch (e) {
+          isSyncingRef.current = false;
+        }
+      }, 300);
+
+    } catch (err) {
+      console.error(err);
+      isSyncingRef.current = false;
+    }
+  };
+
+  const applyPendingPlaybackState = () => {
+    if (!playerRef.current || !pendingPlaybackStateRef.current) return;
+
+    const { currentTime, isPlaying } = pendingPlaybackStateRef.current;
+
+    isSyncingRef.current = true;
+
+    try {
+      // Seek first
+      if (
+        typeof currentTime === "number" &&
+        typeof playerRef.current.seekTo === "function"
+      ) {
+        playerRef.current.seekTo(currentTime, true);
+      }
+
+      // Wait for the seek to complete before changing playback
+      setTimeout(() => {
+        try {
+          if (!playerRef.current) return;
+
+          if (isPlaying) {
+            playerRef.current.playVideo();
+
+            // Verify playback actually started.
+            setTimeout(() => {
+              const state = playerRef.current?.getPlayerState?.();
+
+              // 1 = PLAYING
+              if (state !== 1) {
+                playerRef.current.playVideo();
+              }
+
+              isSyncingRef.current = false;
+              pendingPlaybackStateRef.current = null;
+            }, 500);
+
+          } else {
+            // FIX: Force frame load for paused video state on join/refresh
+            playerRef.current.playVideo();
+            setTimeout(() => {
+              playerRef.current.pauseVideo();
+              isSyncingRef.current = false;
+              pendingPlaybackStateRef.current = null;
+            }, 400);
+          }
+        } catch (err) {
+          console.error(err);
+          isSyncingRef.current = false;
+        }
+      }, 500);
+
+    } catch (err) {
+      console.error(err);
+      isSyncingRef.current = false;
+    }
+  };
 
   // 1. Initial Room Details Fetch via REST API
   useEffect(() => {
@@ -48,7 +148,7 @@ export const RoomPage = () => {
     fetchRoomDetails();
   }, [roomId]);
 
-  // 2. Real-time Socket.IO Connection & Events
+  // 2. Real-time Socket.IO Connection & Playback Event Listeners
   useEffect(() => {
     if (!roomId) return;
 
@@ -86,8 +186,11 @@ export const RoomPage = () => {
     // Event: room-joined
     const handleRoomJoined = (data) => {
       setSocketConnecting(false);
-      setSocketError('');
+      setSocketError("");
+
       if (data?.success && data?.room) {
+        // Reset initial playback restoration
+        initialAppliedRef.current = false;
         setRoom(data.room);
         if (data.room.currentVideoId) {
           setCurrentVideoId(data.room.currentVideoId);
@@ -106,6 +209,127 @@ export const RoomPage = () => {
     const handleUserLeft = (data) => {
       if (data?.room) {
         setRoom(data.room);
+      }
+    };
+
+    // Event: request-playback-state (Host receives this when a new participant joins/refreshes)
+    const handleRequestPlaybackState = (data) => {
+      if (!data?.requesterSocketId) return;
+
+      const curTime = playerRef.current?.getCurrentTime ? playerRef.current.getCurrentTime() : 0;
+      const playerState = playerRef.current?.getPlayerState ? playerRef.current.getPlayerState() : -1;
+      const isPlaying = playerState === 1; // 1 = YT.PlayerState.PLAYING
+
+      socket.emit('playback-state', {
+        roomId,
+        requesterSocketId: data.requesterSocketId,
+        currentVideoId,
+        currentTime: curTime,
+        isPlaying,
+      });
+    };
+
+    const handleSyncPlaybackState = (data) => {
+      if (!data) return;
+
+      const {
+        currentVideoId: syncVideoId,
+        currentTime,
+        isPlaying,
+      } = data;
+
+      pendingPlaybackStateRef.current = {
+        currentTime,
+        isPlaying,
+      };
+
+      // Reset playback restoration for new sync
+      initialAppliedRef.current = false;
+
+      if (syncVideoId && syncVideoId !== currentVideoId) {
+        setCurrentVideoId(syncVideoId);
+        return;
+      }
+
+      applyPendingPlaybackState();
+    };
+
+    // Event: video-changed (Broadcasted to all participants when Host loads a new video)
+    const handleVideoChanged = (data) => {
+      if (!data?.videoId) return;
+
+      pendingPlaybackStateRef.current = {
+        currentTime: data.currentTime || 0,
+        isPlaying: data.isPlaying,
+      };
+
+      initialAppliedRef.current = false;
+      setCurrentVideoId(data.videoId);
+    };
+
+    // Event: sync-play (Received by non-hosts to play player)
+    const handleSyncPlay = (data) => {
+      if (playerRef.current && typeof playerRef.current.playVideo === 'function') {
+        isSyncingRef.current = true;
+        try {
+          if (data?.currentTime !== undefined && typeof playerRef.current.seekTo === 'function') {
+            const curTime = playerRef.current.getCurrentTime ? playerRef.current.getCurrentTime() : 0;
+            if (Math.abs(curTime - data.currentTime) >= 1.0) {
+              playerRef.current.seekTo(data.currentTime, true);
+            }
+          }
+          playerRef.current.playVideo();
+        } catch (err) {
+          console.error('Failed to sync play video:', err);
+        }
+        setTimeout(() => {
+          isSyncingRef.current = false;
+        }, 500);
+      }
+    };
+
+    // Event: sync-pause (Received by non-hosts to pause player)
+    const handleSyncPause = (data) => {
+      if (playerRef.current && typeof playerRef.current.pauseVideo === 'function') {
+        isSyncingRef.current = true;
+        try {
+          if (data?.currentTime !== undefined && typeof playerRef.current.seekTo === 'function') {
+            const curTime = playerRef.current.getCurrentTime ? playerRef.current.getCurrentTime() : 0;
+            if (Math.abs(curTime - data.currentTime) >= 1.0) {
+              playerRef.current.seekTo(data.currentTime, true);
+            }
+          }
+          playerRef.current.pauseVideo();
+        } catch (err) {
+          console.error('Failed to sync pause video:', err);
+        }
+        setTimeout(() => {
+          isSyncingRef.current = false;
+        }, 500);
+      }
+    };
+
+    // Event: sync-seek (Received by non-hosts when Host seeks)
+    const handleSyncSeek = (data) => {
+      if (!data || data.currentTime === undefined) return;
+      if (playerRef.current && typeof playerRef.current.seekTo === 'function') {
+        const curTime = playerRef.current.getCurrentTime ? playerRef.current.getCurrentTime() : 0;
+        if (Math.abs(curTime - data.currentTime) >= 1.0) {
+          isSyncingRef.current = true;
+          try {
+            playerRef.current.seekTo(data.currentTime, true);
+            if (data.isPlaying) {
+              playerRef.current.playVideo();
+            } else {
+              playerRef.current.pauseVideo();
+            }
+          } catch (err) {
+            console.error('Failed to sync seek:', err);
+          }
+          setTimeout(() => {
+            isSyncingRef.current = false;
+          }, 500);
+        }
       }
     };
 
@@ -130,6 +354,12 @@ export const RoomPage = () => {
     socket.on('room-joined', handleRoomJoined);
     socket.on('user-joined', handleUserJoined);
     socket.on('user-left', handleUserLeft);
+    socket.on('request-playback-state', handleRequestPlaybackState);
+    socket.on('sync-playback-state', handleSyncPlaybackState);
+    socket.on('video-changed', handleVideoChanged);
+    socket.on('sync-play', handleSyncPlay);
+    socket.on('sync-pause', handleSyncPause);
+    socket.on('sync-seek', handleSyncSeek);
     socket.on('error', handleSocketError);
     socket.on('connect_error', handleConnectError);
     socket.on('disconnect', handleDisconnect);
@@ -140,6 +370,12 @@ export const RoomPage = () => {
       socket.off('room-joined', handleRoomJoined);
       socket.off('user-joined', handleUserJoined);
       socket.off('user-left', handleUserLeft);
+      socket.off('request-playback-state', handleRequestPlaybackState);
+      socket.off('sync-playback-state', handleSyncPlaybackState);
+      socket.off('video-changed', handleVideoChanged);
+      socket.off('sync-play', handleSyncPlay);
+      socket.off('sync-pause', handleSyncPause);
+      socket.off('sync-seek', handleSyncSeek);
       socket.off('error', handleSocketError);
       socket.off('connect_error', handleConnectError);
       socket.off('disconnect', handleDisconnect);
@@ -148,6 +384,53 @@ export const RoomPage = () => {
       socket.disconnect();
     };
   }, [roomId]);
+
+  const participants = room?.participants || [];
+  const { username: localUsername } = getUserData();
+  const currentParticipant = participants.find(
+    (p) => p.username?.toLowerCase() === localUsername?.toLowerCase()
+  );
+  const isHost = currentParticipant?.role === 'Host';
+
+  // 3. Host Playback Heartbeat & Seek Detection (every 2.5 seconds)
+  useEffect(() => {
+    if (!isHost || !roomId) return;
+    const { username: localUsername } = getUserData();
+
+    const intervalId = setInterval(() => {
+      if (!playerRef.current || typeof playerRef.current.getCurrentTime !== 'function') return;
+
+      try {
+        const currentTime = playerRef.current.getCurrentTime();
+        const playerState = playerRef.current.getPlayerState ? playerRef.current.getPlayerState() : -1;
+        const isPlaying = playerState === 1; // 1 = YT.PlayerState.PLAYING
+
+        // Detect Seek: if time difference between ticks is > 1.5s and not caused by sync
+        const diff = Math.abs(currentTime - lastTimeRef.current);
+        if (diff > 1.5 && !isSyncingRef.current) {
+          socket.emit('host-seek', {
+            roomId,
+            username: localUsername,
+            currentTime,
+          });
+        }
+
+        lastTimeRef.current = currentTime;
+
+        // Periodic Playback State Heartbeat (every 2.5 seconds)
+        socket.emit('playback-state-update', {
+          roomId,
+          username: localUsername,
+          currentTime,
+          isPlaying,
+        });
+      } catch (err) {
+        // Player might not be ready yet
+      }
+    }, 2500);
+
+    return () => clearInterval(intervalId);
+  }, [isHost, roomId]);
 
   const handleCopyCode = async () => {
     if (!roomId) return;
@@ -162,10 +445,70 @@ export const RoomPage = () => {
 
   const handleVideoLoaded = (videoId, updatedRoom) => {
     setCurrentVideoId(videoId);
+    initialAppliedRef.current = false;
     if (updatedRoom) {
       setRoom(updatedRoom);
     } else {
-      setRoom((prev) => (prev ? { ...prev, currentVideoId: videoId } : prev));
+      setRoom((prev) => (prev ? { ...prev, currentVideoId: videoId, currentTime: 0, isPlaying: true } : prev));
+    }
+    const { username: localUsername } = getUserData();
+    socket.emit('host-video-change', {
+      roomId,
+      username: localUsername,
+      videoId,
+      currentTime: 0,
+      isPlaying: true,
+    });
+  };
+
+  // YouTube Player Event Handlers
+  const handlePlayerReady = (event) => {
+    playerRef.current = event.target;
+
+    // If a playback state is waiting, apply it first
+    if (pendingPlaybackStateRef.current) {
+      applyPendingPlaybackState();
+      initialAppliedRef.current = true;
+      return;
+    }
+
+    // Otherwise restore room state only once
+    if (room && !initialAppliedRef.current) {
+      applyRoomPlaybackState(room, event.target);
+      initialAppliedRef.current = true;
+    }
+  };
+
+  const handlePlayerPlay = () => {
+    if (isSyncingRef.current) return;
+
+    if (!isHost) {
+      isSyncingRef.current = true;
+      playerRef.current?.pauseVideo();
+
+      setTimeout(() => {
+        isSyncingRef.current = false;
+      }, 300);
+
+      return;
+    }
+
+    const curTime = playerRef.current?.getCurrentTime
+      ? playerRef.current.getCurrentTime()
+      : 0;
+
+    socket.emit("host-play", {
+      roomId,
+      username: localUsername,
+      currentTime: curTime,
+    });
+  };
+
+  const handlePlayerPause = () => {
+    if (isSyncingRef.current) return;
+    if (isHost) {
+      const curTime = playerRef.current?.getCurrentTime ? playerRef.current.getCurrentTime() : 0;
+      socket.emit('host-pause', { roomId, username: localUsername, currentTime: curTime });
     }
   };
 
@@ -203,13 +546,6 @@ export const RoomPage = () => {
       </div>
     );
   }
-
-  const participants = room.participants || [];
-  const { username: localUsername } = getUserData();
-  const currentParticipant = participants.find(
-    (p) => p.username?.toLowerCase() === localUsername?.toLowerCase()
-  );
-  const isHost = currentParticipant?.role === 'Host';
 
   return (
     <div className="space-y-6">
@@ -273,7 +609,12 @@ export const RoomPage = () => {
         {/* Main Player Area & Host Controls */}
         <div className="lg:col-span-2 space-y-4">
           {currentVideoId ? (
-            <YouTubePlayer videoId={currentVideoId} />
+            <YouTubePlayer
+              videoId={currentVideoId}
+              onReady={handlePlayerReady}
+              onPlay={handlePlayerPlay}
+              onPause={handlePlayerPause}
+            />
           ) : (
             <PlayerPlaceholder />
           )}
@@ -310,17 +651,15 @@ export const RoomPage = () => {
                 return (
                   <div
                     key={participant.socketId || index}
-                    className={`flex items-center justify-between p-3 rounded-xl border ${
-                      isCurrentUser
-                        ? 'bg-indigo-950/30 border-indigo-500/30'
-                        : 'bg-slate-800/50 border-slate-800/80'
-                    }`}
+                    className={`flex items-center justify-between p-3 rounded-xl border ${isCurrentUser
+                      ? 'bg-indigo-950/30 border-indigo-500/30'
+                      : 'bg-slate-800/50 border-slate-800/80'
+                      }`}
                   >
                     <div className="flex items-center space-x-3">
                       <div
-                        className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-white text-xs ${
-                          participantIsHost ? 'bg-indigo-600' : 'bg-slate-700'
-                        }`}
+                        className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-white text-xs ${participantIsHost ? 'bg-indigo-600' : 'bg-slate-700'
+                          }`}
                       >
                         {participant.username ? participant.username.charAt(0).toUpperCase() : 'U'}
                       </div>

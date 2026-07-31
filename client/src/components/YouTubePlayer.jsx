@@ -1,24 +1,32 @@
-import React from 'react';
-import YouTube from 'react-youtube';
+import React from "react";
+import YouTube from "react-youtube";
 
-export const YouTubePlayer = ({ videoId }) => {
+export const YouTubePlayer = ({ videoId, onReady, onPlay, onPause }) => {
   if (!videoId) return null;
 
   const opts = {
-    height: '100%',
-    width: '100%',
+    height: "100%",
+    width: "100%",
     playerVars: {
       autoplay: 1,
       rel: 0,
       modestbranding: 1,
+      playsinline: 1,
+      enablejsapi: 1,
+      mute: 1,
+      origin: window.location.origin,
     },
   };
 
   return (
     <div className="w-full aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl border border-slate-800">
       <YouTube
+        key={videoId}
         videoId={videoId}
         opts={opts}
+        onReady={onReady}
+        onPlay={onPlay}
+        onPause={onPause}
         className="w-full h-full aspect-video"
         iframeClassName="w-full h-full"
       />
