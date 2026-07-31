@@ -33,9 +33,14 @@ export const ParticipantList = ({ roomId, participants = [], localUsername = '' 
       headerAction={<Users className="w-5 h-5 text-indigo-400" />}
     >
       {participants.length === 0 ? (
-        <div className="text-center py-8 space-y-2">
-          <Users className="w-8 h-8 text-slate-600 mx-auto" />
-          <p className="text-sm text-slate-400">No participants in room yet.</p>
+        <div className="text-center py-8 px-4 space-y-2.5 bg-slate-900/40 rounded-2xl border border-dashed border-slate-800/80">
+          <div className="p-3 bg-indigo-500/10 text-indigo-400 rounded-full w-12 h-12 flex items-center justify-center mx-auto border border-indigo-500/20 shadow-inner">
+            <Users className="w-6 h-6" />
+          </div>
+          <h4 className="text-base font-bold text-white tracking-tight">Waiting for Participants</h4>
+          <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">
+            Invite others using the room code.
+          </p>
         </div>
       ) : (
         <div className="space-y-3.5">
@@ -47,11 +52,6 @@ export const ParticipantList = ({ roomId, participants = [], localUsername = '' 
             const isCurrentUser =
               participant.username?.toLowerCase() === localUsername?.toLowerCase();
 
-            // Card styling strategy:
-            // Host: Subtle gold border, soft amber glow, premium badge.
-            // Moderator: Blue accent border, subtle blue glow, moderator badge.
-            // Participant: Neutral slate styling.
-            // Current User: Indigo ring highlight.
             let cardStyle =
               'p-4 rounded-2xl border transition-all duration-200 ease-out focus-within:ring-2 focus-within:ring-indigo-500/40 ';
 
@@ -177,6 +177,19 @@ export const ParticipantList = ({ roomId, participants = [], localUsername = '' 
               </div>
             );
           })}
+
+          {/* Empty state when only 1 participant (Host alone in room) */}
+          {participants.length === 1 && (
+            <div className="mt-3.5 p-4 text-center space-y-2 bg-slate-950/50 rounded-2xl border border-dashed border-slate-800/80">
+              <div className="p-2.5 bg-indigo-500/10 text-indigo-400 rounded-full w-10 h-10 flex items-center justify-center mx-auto border border-indigo-500/20 shadow-inner">
+                <Users className="w-5 h-5" />
+              </div>
+              <h4 className="text-sm font-bold text-white tracking-tight">Waiting for Participants</h4>
+              <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">
+                Invite others using the room code.
+              </p>
+            </div>
+          )}
         </div>
       )}
     </Card>

@@ -7,11 +7,17 @@ import { PlayerPlaceholder } from '../components/PlayerPlaceholder.jsx';
 import YouTubePlayer from '../components/YouTubePlayer.jsx';
 import HostVideoControls from '../components/HostVideoControls.jsx';
 import ParticipantList from '../components/ParticipantList.jsx';
+import {
+  PlayerSkeleton,
+  RoomHeaderSkeleton,
+  ParticipantListSkeleton,
+  NowPlayingSkeleton,
+} from '../components/Skeletons.jsx';
 import { getRoomApi } from '../services/api.js';
 import socket from '../services/socketService.js';
 import { getUserData } from '../utils/helpers.js';
 import { canControlPlayback } from '../utils/permissions.js';
-import { AlertCircle, Home, Copy, Check, Play, Pause, Crown, ShieldCheck, User, Tv } from 'lucide-react';
+import { AlertCircle, Home, Copy, Check, Play, Pause, Crown, ShieldCheck, User, Tv, WifiOff } from 'lucide-react';
 import { toast } from 'sonner';
 
 export const RoomPage = () => {
@@ -590,29 +596,42 @@ export const RoomPage = () => {
     }
   };
 
+  // 1. Loading State: Render Skeleton Layout matching exact dimensions
   if (loading) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <Loader size="lg" text="Loading room details..." />
+      <div className="space-y-4 sm:space-y-6">
+        <RoomHeaderSkeleton />
+        <div className="flex flex-col lg:grid lg:grid-cols-3 gap-4 sm:gap-6">
+          <div className="order-1 lg:order-none lg:col-span-2 space-y-4">
+            <PlayerSkeleton />
+            <NowPlayingSkeleton />
+          </div>
+          <div className="order-2 lg:order-none lg:col-span-1">
+            <ParticipantListSkeleton />
+          </div>
+        </div>
       </div>
     );
   }
 
+  // 2. Room Not Found / Access Denied Empty State
   if (error || !room) {
     return (
-      <div className="max-w-md mx-auto py-12 text-center">
-        <Card className="border-rose-500/30">
-          <div className="p-3 bg-rose-500/10 text-rose-400 rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-4">
-            <AlertCircle className="w-6 h-6" />
+      <div className="max-w-md mx-auto py-8 sm:py-12 text-center px-4">
+        <Card className="border-rose-500/30 bg-slate-900/90 backdrop-blur-xl shadow-2xl p-6 sm:p-8">
+          <div className="p-4 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-2xl w-16 h-16 flex items-center justify-center mx-auto mb-5 shadow-lg shadow-rose-500/10">
+            <AlertCircle className="w-8 h-8" />
           </div>
-          <h2 className="text-xl font-bold text-white mb-2">
+          <h2 className="text-2xl font-extrabold text-white tracking-tight mb-2.5">
             {error?.includes('removed') ? 'Access Denied' : 'Room Not Found'}
           </h2>
-          <p className="text-slate-400 text-sm mb-6">{error || 'The requested watch party room does not exist.'}</p>
+          <p className="text-slate-400 text-sm max-w-xs mx-auto mb-6 leading-relaxed">
+            {error || 'The requested watch party room does not exist.'}
+          </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link to="/">
               <Button variant="primary" className="w-full sm:w-auto">
-                <Home className="w-4 h-4 mr-2" />
+                <Home className="w-4 h-4 mr-2 shrink-0" />
                 Create Room
               </Button>
             </Link>
@@ -628,37 +647,40 @@ export const RoomPage = () => {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Socket Error Alert */}
+    <div className="space-y-4 sm:space-y-6">
+      {/* Disconnected / Socket Error Banner Empty State */}
       {socketError && (
-        <div className="flex items-center space-x-2 p-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl text-rose-400 text-sm shadow-lg">
-          <AlertCircle className="w-5 h-5 flex-shrink-0" />
-          <span className="font-medium">{socketError}</span>
+        <div className="flex items-center space-x-3 p-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl text-rose-400 text-sm shadow-lg backdrop-blur-md animate-fade-in">
+          <WifiOff className="w-5 h-5 flex-shrink-0 text-rose-400" />
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="font-bold text-rose-300">Connection Lost</span>
+            <span className="text-xs text-rose-400/90">— Attempting to reconnect...</span>
+          </div>
         </div>
       )}
 
-      {/* Top Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-slate-900/90 via-slate-900/80 to-indigo-950/40 p-5 rounded-2xl border border-slate-800/90 backdrop-blur-xl shadow-2xl">
-        <div className="space-y-1.5">
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="text-[11px] font-extrabold uppercase tracking-wider px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/30 shadow-sm">
+      {/* Top Banner (Room Header) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 sm:gap-4 bg-gradient-to-r from-slate-900/90 via-slate-900/80 to-indigo-950/40 p-4 sm:p-5 rounded-2xl border border-slate-800/90 backdrop-blur-xl shadow-2xl">
+        <div className="space-y-1.5 min-w-0">
+          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 min-w-0">
+            <span className="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/30 shadow-sm shrink-0">
               Room Code
             </span>
-            <h2 className="text-2xl sm:text-3xl font-black text-white font-mono tracking-widest text-indigo-400 bg-slate-950/80 px-3.5 py-0.5 rounded-xl border border-indigo-500/30 shadow-inner">
+            <h2 className="text-xl sm:text-2xl lg:text-3xl font-black text-white font-mono tracking-widest text-indigo-400 bg-slate-950/80 px-3 sm:px-3.5 py-0.5 rounded-xl border border-indigo-500/30 shadow-inner shrink-0">
               {room.roomId}
             </h2>
             {socketConnecting ? (
-              <span className="inline-flex items-center text-xs font-semibold text-amber-400 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30">
+              <span className="inline-flex items-center text-xs font-semibold text-amber-400 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full bg-amber-500/10 border border-amber-500/30 shrink-0">
                 <Loader size="sm" />
                 <span className="ml-1.5">Connecting...</span>
               </span>
             ) : socketError ? (
-              <span className="inline-flex items-center text-xs font-semibold text-rose-400 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/30">
+              <span className="inline-flex items-center text-xs font-semibold text-rose-400 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full bg-rose-500/10 border border-rose-500/30 shrink-0">
                 <span className="h-2 w-2 rounded-full bg-rose-500 mr-2"></span>
                 Disconnected
               </span>
             ) : (
-              <span className="inline-flex items-center text-xs font-semibold text-emerald-400 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 shadow-sm">
+              <span className="inline-flex items-center text-xs font-semibold text-emerald-400 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 shadow-sm shrink-0">
                 <span className="relative flex h-2 w-2 mr-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
@@ -667,32 +689,35 @@ export const RoomPage = () => {
               </span>
             )}
           </div>
-          <p className="text-xs text-slate-400">Share this code with your friends to watch YouTube together in sync.</p>
+          <p className="text-xs text-slate-400 leading-relaxed">Share this code with your friends to watch YouTube together in sync.</p>
         </div>
 
         <Button
           onClick={handleCopyCode}
           variant={copied ? 'outline' : 'secondary'}
           size="sm"
-          className="self-start sm:self-auto min-w-[130px]"
+          className="w-full sm:w-auto min-w-[130px] self-stretch sm:self-auto shrink-0"
         >
           {copied ? (
             <>
-              <Check className="w-4 h-4 mr-2 text-emerald-400" />
+              <Check className="w-4 h-4 mr-2 text-emerald-400 shrink-0" />
               <span className="text-emerald-400 font-bold">Copied!</span>
             </>
           ) : (
             <>
-              <Copy className="w-4 h-4 mr-2 text-indigo-400" />
+              <Copy className="w-4 h-4 mr-2 text-indigo-400 shrink-0" />
               <span>Copy Code</span>
             </>
           )}
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Player Area & Host/Moderator Controls */}
-        <div className="lg:col-span-2 space-y-4">
+      {/* Main Grid / Stacking Order Section */}
+      {/* Mobile (<1024px): Stack vertically (1. Player -> 2. Participants -> 3. Controls -> 4. Now Playing) */}
+      {/* Desktop (>=1024px): 3-column grid (Left: Player, Controls, Now Playing; Right: Participants) */}
+      <div className="flex flex-col lg:grid lg:grid-cols-3 gap-4 sm:gap-6">
+        {/* 1. Player Section */}
+        <div className="order-1 lg:order-none lg:col-span-2">
           {currentVideoId ? (
             <YouTubePlayer
               videoId={currentVideoId}
@@ -703,60 +728,75 @@ export const RoomPage = () => {
           ) : (
             <PlayerPlaceholder />
           )}
+        </div>
 
-          {canControl && (
+        {/* 2. Participants Section (Mobile: Order 2, Desktop: Right Column) */}
+        <div className="order-2 lg:order-none lg:col-span-1 lg:row-span-3 space-y-4">
+          <ParticipantList
+            roomId={room.roomId}
+            participants={participants}
+            localUsername={localUsername}
+          />
+        </div>
+
+        {/* 3. Playback Controls Section (Mobile: Order 3, Desktop: Left Column) */}
+        {canControl && (
+          <div className="order-3 lg:order-none lg:col-span-2">
             <HostVideoControls
               roomId={room.roomId}
               onVideoLoaded={handleVideoLoaded}
             />
-          )}
+          </div>
+        )}
 
+        {/* 4. Now Playing Section (Mobile: Order 4, Desktop: Left Column) */}
+        <div className="order-4 lg:order-none lg:col-span-2">
           <Card
             title="Now Playing"
             subtitle="Current playback session status and video details"
             headerAction={<Tv className="w-5 h-5 text-indigo-400" />}
           >
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
-              <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800/80 space-y-1">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 pt-1">
+              <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800/80 space-y-1 min-w-0">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Video ID</span>
                 <p className="text-sm font-mono font-bold text-white truncate">
                   {currentVideoId || 'None'}
                 </p>
               </div>
 
-              <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800/80 space-y-1">
+              <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800/80 space-y-1 min-w-0">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Playback Status</span>
                 <div>
                   {currentVideoId ? (
                     <span className="inline-flex items-center text-xs font-semibold text-emerald-400 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                      <Play className="w-3 h-3 mr-1 fill-emerald-400" />
+                      <Play className="w-3 h-3 mr-1 fill-emerald-400 shrink-0" />
                       Active Stream
                     </span>
                   ) : (
                     <span className="inline-flex items-center text-xs font-semibold text-amber-400 px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20">
-                      <Pause className="w-3 h-3 mr-1 fill-amber-400" />
+                      <Pause className="w-3 h-3 mr-1 fill-amber-400 shrink-0" />
                       Waiting Video
                     </span>
                   )}
                 </div>
               </div>
 
-              <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800/80 space-y-1">
+              <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800/80 space-y-1 min-w-0">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Your Role</span>
                 <div>
                   {isHost ? (
                     <span className="inline-flex items-center text-xs font-bold text-amber-300 px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30">
-                      <Crown className="w-3 h-3 mr-1 text-amber-400 fill-amber-400" />
+                      <Crown className="w-3 h-3 mr-1 text-amber-400 fill-amber-400 shrink-0" />
                       Host
                     </span>
                   ) : currentParticipant?.role === 'Moderator' ? (
                     <span className="inline-flex items-center text-xs font-bold text-blue-300 px-2.5 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/30">
-                      <ShieldCheck className="w-3 h-3 mr-1 text-blue-400" />
+                      <ShieldCheck className="w-3 h-3 mr-1 text-blue-400 shrink-0" />
                       Moderator
                     </span>
                   ) : (
                     <span className="inline-flex items-center text-xs font-medium text-slate-300 px-2.5 py-0.5 rounded-full bg-slate-800 border border-slate-700">
-                      <User className="w-3 h-3 mr-1 text-slate-400" />
+                      <User className="w-3 h-3 mr-1 text-slate-400 shrink-0" />
                       Participant
                     </span>
                   )}
@@ -764,15 +804,6 @@ export const RoomPage = () => {
               </div>
             </div>
           </Card>
-        </div>
-
-        {/* Sidebar / Participants */}
-        <div className="space-y-4">
-          <ParticipantList
-            roomId={room.roomId}
-            participants={participants}
-            localUsername={localUsername}
-          />
         </div>
       </div>
     </div>

@@ -62,23 +62,23 @@ export const JoinRoomPage = () => {
   };
 
   return (
-    <div className="max-w-xl mx-auto py-8 sm:py-12 px-4 space-y-8">
-      <div className="text-center space-y-3">
-        <div className="inline-flex p-4 bg-gradient-to-tr from-purple-600 to-indigo-600 rounded-3xl text-white shadow-xl shadow-purple-600/30 border border-purple-400/20 mb-2 transform hover:scale-105 transition-transform duration-300">
-          <Users className="w-12 h-12" />
+    <div className="max-w-xl mx-auto py-6 sm:py-12 px-3.5 sm:px-4 space-y-6 sm:space-y-8">
+      <div className="text-center space-y-2.5 sm:space-y-3">
+        <div className="inline-flex p-3.5 sm:p-4 bg-gradient-to-tr from-purple-600 to-indigo-600 rounded-3xl text-white shadow-xl shadow-purple-600/30 border border-purple-400/20 mb-1 sm:mb-2 transform hover:scale-105 transition-transform duration-300">
+          <Users className="w-10 h-10 sm:w-12 sm:h-12" />
         </div>
-        <h1 className="text-4xl font-black text-white tracking-tight">
+        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight">
           Join Watch Party
         </h1>
-        <p className="text-slate-400 text-base max-w-md mx-auto">
+        <p className="text-slate-400 text-sm sm:text-base max-w-md mx-auto leading-relaxed">
           Enter an existing room code and your display name to join the stream instantly.
         </p>
       </div>
 
       <Card title="Room Code & Info" subtitle="Fill out the details below to join your friends">
-        <form onSubmit={handleJoinRoom} className="space-y-5">
+        <form onSubmit={handleJoinRoom} className="space-y-4 sm:space-y-5">
           {error && (
-            <div className="flex items-center space-x-2 p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-400 text-sm shadow-sm">
+            <div className="flex items-center space-x-2 p-3 sm:p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-400 text-sm shadow-sm">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
               <span className="font-medium">{error}</span>
             </div>
@@ -95,7 +95,7 @@ export const JoinRoomPage = () => {
               }}
               required
               disabled={loading}
-              className="font-mono tracking-widest uppercase font-bold text-center text-lg py-3.5"
+              className="font-mono tracking-widest uppercase font-bold text-center text-lg py-3 sm:py-3.5"
             />
           </div>
 
@@ -116,14 +116,14 @@ export const JoinRoomPage = () => {
               <Loader size="sm" text="Joining Room..." />
             ) : (
               <>
-                <LogIn className="w-5 h-5 mr-2" />
+                <LogIn className="w-5 h-5 mr-2 shrink-0" />
                 Join Watch Party
               </>
             )}
           </Button>
 
           <div className="pt-1 text-center text-xs text-slate-500 flex items-center justify-center space-x-1">
-            <KeyRound className="w-3.5 h-3.5 text-purple-400" />
+            <KeyRound className="w-3.5 h-3.5 text-purple-400 shrink-0" />
             <span>Room code is provided by the room Host</span>
           </div>
         </form>
