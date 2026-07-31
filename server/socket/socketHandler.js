@@ -321,6 +321,26 @@ export const initializeSocket = (io) => {
       }
     });
 
+    // Dedicated Event: send-reaction
+    socket.on('send-reaction', (data) => {
+      try {
+        const { roomId, emoji, username } = data || {};
+        if (!roomId || !emoji) return;
+
+        const reaction = {
+          id: `${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+          emoji: String(emoji).trim(),
+          username: username ? String(username).trim() : 'Anonymous',
+          xOffset: Math.floor(Math.random() * 75) + 10, // 10% to 85%
+        };
+
+        // Broadcast reaction to all participants in the room
+        io.to(roomId).emit('receive-reaction', reaction);
+      } catch (error) {
+        console.error(`[Socket Error] Error in send-reaction: ${error.message}`);
+      }
+    });
+
     // Event: playback-state (Sent by Host in response to request-playback-state)
     socket.on('playback-state', async (data) => {
       try {

@@ -8,6 +8,7 @@ import YouTubePlayer from '../components/YouTubePlayer.jsx';
 import HostVideoControls from '../components/HostVideoControls.jsx';
 import ParticipantList from '../components/ParticipantList.jsx';
 import RoomChat from '../components/RoomChat.jsx';
+import { ReactionsBar, FloatingReactionsOverlay } from '../components/EmojiReactions.jsx';
 import {
   PlayerSkeleton,
   RoomHeaderSkeleton,
@@ -30,6 +31,7 @@ export const RoomPage = () => {
   const [socketError, setSocketError] = useState('');
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+  const [reactions, setReactions] = useState([]);
 
   const playerRef = useRef(null);
   const isSyncingRef = useRef(false);
@@ -283,6 +285,17 @@ export const RoomPage = () => {
       toast.error('Room does not exist.');
     };
 
+    // Event: receive-reaction
+    const handleReceiveReaction = (reaction) => {
+      if (!reaction || !reaction.id) return;
+      setReactions((prev) => [...prev, reaction]);
+
+      // Automatically remove reaction from state after 2500ms
+      setTimeout(() => {
+        setReactions((prev) => prev.filter((r) => r.id !== reaction.id));
+      }, 2500);
+    };
+
     // Event: request-playback-state (Host receives this when a new participant joins/refreshes)
     const handleRequestPlaybackState = (data) => {
       if (!data?.requesterSocketId) return;
@@ -432,6 +445,7 @@ export const RoomPage = () => {
     socket.on('role-assigned', handleRoleAssigned);
     socket.on('participant-removed', handleParticipantRemoved);
     socket.on('room-access-denied', handleRoomAccessDenied);
+    socket.on('receive-reaction', handleReceiveReaction);
     socket.on('request-playback-state', handleRequestPlaybackState);
     socket.on('sync-playback-state', handleSyncPlaybackState);
     socket.on('video-changed', handleVideoChanged);
@@ -451,6 +465,7 @@ export const RoomPage = () => {
       socket.off('role-assigned', handleRoleAssigned);
       socket.off('participant-removed', handleParticipantRemoved);
       socket.off('room-access-denied', handleRoomAccessDenied);
+      socket.off('receive-reaction', handleReceiveReaction);
       socket.off('request-playback-state', handleRequestPlaybackState);
       socket.off('sync-playback-state', handleSyncPlaybackState);
       socket.off('video-changed', handleVideoChanged);
@@ -522,6 +537,15 @@ export const RoomPage = () => {
     } catch (err) {
       console.error('Failed to copy room code:', err);
     }
+  };
+
+  const handleSendReaction = (emoji) => {
+    if (!roomId || !emoji) return;
+    socket.emit('send-reaction', {
+      roomId,
+      emoji,
+      username: localUsername,
+    });
   };
 
   const handleVideoLoaded = (videoId, updatedRoom) => {
@@ -720,18 +744,23 @@ export const RoomPage = () => {
 
       {/* Main Grid / Stacking Order Section */}
       <div className="flex flex-col lg:grid lg:grid-cols-3 gap-4 sm:gap-6">
-        {/* 1. Player Section */}
-        <div className="order-1 lg:order-none lg:col-span-2">
-          {currentVideoId ? (
-            <YouTubePlayer
-              videoId={currentVideoId}
-              onReady={handlePlayerReady}
-              onPlay={handlePlayerPlay}
-              onPause={handlePlayerPause}
-            />
-          ) : (
-            <PlayerPlaceholder />
-          )}
+        {/* 1. Player Section & Emoji Reaction Bar */}
+        <div className="order-1 lg:order-none lg:col-span-2 space-y-3">
+          <div className="relative overflow-hidden rounded-2xl">
+            <FloatingReactionsOverlay reactions={reactions} />
+            {currentVideoId ? (
+              <YouTubePlayer
+                videoId={currentVideoId}
+                onReady={handlePlayerReady}
+                onPlay={handlePlayerPlay}
+                onPause={handlePlayerPause}
+              />
+            ) : (
+              <PlayerPlaceholder />
+            )}
+          </div>
+
+          <ReactionsBar onReact={handleSendReaction} />
         </div>
 
         {/* 2. Participants Section & Room Chat (Mobile: Order 2, Desktop: Right Column) */}
