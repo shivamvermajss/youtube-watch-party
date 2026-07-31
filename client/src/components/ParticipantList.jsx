@@ -38,7 +38,7 @@ export const ParticipantList = ({ roomId, participants = [], localUsername = '' 
           <p className="text-sm text-slate-400">No participants in room yet.</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {participants.map((participant, index) => {
             const role = participant.role || 'Participant';
             const isHost = role === 'Host';
@@ -50,74 +50,80 @@ export const ParticipantList = ({ roomId, participants = [], localUsername = '' 
             return (
               <div
                 key={participant.socketId || participant.username || index}
-                className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl border transition-all duration-300 ${
+                className={`p-4 rounded-2xl border transition-all duration-300 ${
                   isCurrentUser
-                    ? 'bg-indigo-950/40 border-indigo-500/50 shadow-md shadow-indigo-500/10'
-                    : 'bg-slate-900/60 border-slate-800/80 hover:bg-slate-800/80 hover:border-slate-700/80 hover:shadow-lg'
+                    ? 'bg-indigo-950/40 border-indigo-500/50 shadow-lg shadow-indigo-500/10'
+                    : 'bg-slate-900/70 border-slate-800/90 hover:bg-slate-800/80 hover:border-slate-700/80 hover:shadow-xl'
                 }`}
               >
-                {/* User Avatar & Info */}
-                <div className="flex items-center space-x-3">
-                  <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white text-sm shadow-md transition-transform duration-300 hover:scale-105 ${
-                      isHost
-                        ? 'bg-gradient-to-tr from-amber-600 via-amber-500 to-yellow-400 shadow-amber-500/30'
-                        : isModerator
-                        ? 'bg-gradient-to-tr from-blue-600 via-indigo-500 to-cyan-400 shadow-blue-500/30'
-                        : 'bg-gradient-to-tr from-slate-700 to-slate-600'
-                    }`}
-                  >
-                    {participant.username ? participant.username.charAt(0).toUpperCase() : 'U'}
-                  </div>
+                {/* TOP SECTION: User Avatar, Name & Role Badge */}
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center space-x-3 min-w-0 flex-1">
+                    {/* Avatar */}
+                    <div
+                      className={`w-11 h-11 rounded-full flex items-center justify-center font-extrabold text-white text-base shadow-md shrink-0 transition-transform duration-300 hover:scale-105 ${
+                        isHost
+                          ? 'bg-gradient-to-tr from-amber-600 via-amber-500 to-yellow-400 shadow-amber-500/30 ring-2 ring-amber-500/30'
+                          : isModerator
+                          ? 'bg-gradient-to-tr from-blue-600 via-indigo-500 to-cyan-400 shadow-blue-500/30 ring-2 ring-blue-500/30'
+                          : 'bg-gradient-to-tr from-slate-700 to-slate-600 ring-2 ring-slate-700/30'
+                      }`}
+                    >
+                      {participant.username ? participant.username.charAt(0).toUpperCase() : 'U'}
+                    </div>
 
-                  <div className="space-y-1">
-                    <p className="text-sm font-semibold text-white flex items-center gap-1.5">
-                      <span>{participant.username}</span>
-                      {isCurrentUser && (
-                        <span className="text-[11px] font-semibold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full border border-indigo-500/20">
-                          You
-                        </span>
-                      )}
-                    </p>
+                    {/* User Info */}
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <p className="text-base font-bold text-white truncate leading-tight">
+                          {participant.username}
+                        </p>
+                        {isCurrentUser && (
+                          <span className="shrink-0 text-[10px] font-bold text-indigo-300 bg-indigo-500/20 px-2 py-0.5 rounded-full border border-indigo-500/30">
+                            You
+                          </span>
+                        )}
+                      </div>
 
-                    {/* Premium Role Badge */}
-                    <div className="flex items-center gap-1">
-                      {isHost && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/10 border border-amber-500/40 text-amber-300 shadow-sm shadow-amber-500/10">
-                          <Crown className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-                          Host
-                        </span>
-                      )}
+                      {/* Role Badge */}
+                      <div className="flex items-center">
+                        {isHost && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/10 border border-amber-500/40 text-amber-300 shadow-sm shadow-amber-500/10">
+                            <Crown className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                            Host
+                          </span>
+                        )}
 
-                      {isModerator && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-500/10 border border-blue-500/40 text-blue-300 shadow-sm shadow-blue-500/10">
-                          <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
-                          Moderator
-                        </span>
-                      )}
+                        {isModerator && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-500/10 border border-blue-500/40 text-blue-300 shadow-sm shadow-blue-500/10">
+                            <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
+                            Moderator
+                          </span>
+                        )}
 
-                      {isParticipant && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-800/90 border border-slate-700/80 text-slate-300">
-                          <User className="w-3 h-3 text-slate-400" />
-                          Participant
-                        </span>
-                      )}
+                        {isParticipant && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-800/90 border border-slate-700/80 text-slate-300">
+                            <User className="w-3.5 h-3.5 text-slate-400" />
+                            Participant
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Action Buttons for Host */}
+                {/* BOTTOM SECTION: Host Action Controls */}
                 {isCurrentHost && !isHost && (
-                  <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                  <div className="pt-3 mt-3 border-t border-slate-800/80 flex flex-col sm:flex-row gap-2 w-full">
                     {isParticipant && (
                       <Button
                         size="sm"
                         variant="secondary"
                         onClick={() => handleAssignRole(participant.username, 'Moderator')}
-                        className="text-xs py-1.5 px-2.5 bg-blue-600/20 hover:bg-blue-600/30 border-blue-500/30 text-blue-300 hover:text-white"
+                        className="flex-1 text-xs py-2 px-3 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 hover:text-white font-semibold transition-all duration-200 hover:-translate-y-0.5"
                         title="Promote to Moderator"
                       >
-                        <UserPlus className="w-3.5 h-3.5 mr-1 text-blue-400" />
+                        <UserPlus className="w-4 h-4 mr-1.5 text-indigo-400" />
                         Assign Moderator
                       </Button>
                     )}
@@ -127,10 +133,10 @@ export const ParticipantList = ({ roomId, participants = [], localUsername = '' 
                         size="sm"
                         variant="outline"
                         onClick={() => handleAssignRole(participant.username, 'Participant')}
-                        className="text-xs py-1.5 px-2.5 border-slate-600/60 hover:bg-slate-700/50 text-slate-300"
+                        className="flex-1 text-xs py-2 px-3 bg-slate-800/90 hover:bg-slate-700/90 border border-slate-700/80 text-slate-300 hover:text-white font-semibold transition-all duration-200 hover:-translate-y-0.5"
                         title="Demote to Participant"
                       >
-                        <UserMinus className="w-3.5 h-3.5 mr-1 text-amber-400" />
+                        <UserMinus className="w-4 h-4 mr-1.5 text-amber-400" />
                         Remove Moderator
                       </Button>
                     )}
@@ -139,10 +145,10 @@ export const ParticipantList = ({ roomId, participants = [], localUsername = '' 
                       size="sm"
                       variant="danger"
                       onClick={() => handleRemoveParticipant(participant.username)}
-                      className="text-xs py-1.5 px-2.5 bg-rose-600/20 hover:bg-rose-600/30 border-rose-500/30 text-rose-300 hover:text-white"
+                      className="flex-1 text-xs py-2 px-3 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-semibold shadow-md shadow-rose-600/20 border border-rose-500/30 hover:scale-[1.02] transition-all duration-200"
                       title="Remove User from Room"
                     >
-                      <Trash2 className="w-3.5 h-3.5 mr-1" />
+                      <Trash2 className="w-4 h-4 mr-1.5" />
                       Remove User
                     </Button>
                   </div>

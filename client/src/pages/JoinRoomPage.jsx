@@ -8,6 +8,8 @@ import { joinRoomApi } from '../services/api.js';
 import { saveUserData, getUserData } from '../utils/helpers.js';
 import { LogIn, Users, AlertCircle, KeyRound } from 'lucide-react';
 
+import notify from '../utils/toast.js';
+
 export const JoinRoomPage = () => {
   const [roomCode, setRoomCode] = useState('');
   const [username, setUsername] = useState('');
@@ -45,6 +47,7 @@ export const JoinRoomPage = () => {
 
       if (res.success && res.data?.roomId) {
         saveUserData(trimmedName, res.data.roomId);
+        notify.success('Joined watch party room successfully!');
         navigate(`/room/${res.data.roomId}`);
       } else {
         setError(res.message || 'Failed to join room. Please check the room code.');
