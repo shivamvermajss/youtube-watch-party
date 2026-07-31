@@ -617,7 +617,7 @@ export const RoomPage = () => {
   // 2. Room Not Found / Access Denied Empty State
   if (error || !room) {
     return (
-      <div className="max-w-md mx-auto py-8 sm:py-12 text-center px-4">
+      <div className="max-w-md mx-auto py-8 sm:py-12 text-center px-4 animate-fade-in">
         <Card className="border-rose-500/30 bg-slate-900/90 backdrop-blur-xl shadow-2xl p-6 sm:p-8">
           <div className="p-4 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-2xl w-16 h-16 flex items-center justify-center mx-auto mb-5 shadow-lg shadow-rose-500/10">
             <AlertCircle className="w-8 h-8" />
@@ -647,7 +647,7 @@ export const RoomPage = () => {
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="space-y-4 sm:space-y-6 animate-fade-in">
       {/* Disconnected / Socket Error Banner Empty State */}
       {socketError && (
         <div className="flex items-center space-x-3 p-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl text-rose-400 text-sm shadow-lg backdrop-blur-md animate-fade-in">
@@ -671,12 +671,15 @@ export const RoomPage = () => {
             </h2>
             {socketConnecting ? (
               <span className="inline-flex items-center text-xs font-semibold text-amber-400 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full bg-amber-500/10 border border-amber-500/30 shrink-0">
-                <Loader size="sm" />
-                <span className="ml-1.5">Connecting...</span>
+                <span className="relative flex h-2 w-2 mr-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                </span>
+                Connecting...
               </span>
             ) : socketError ? (
               <span className="inline-flex items-center text-xs font-semibold text-rose-400 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full bg-rose-500/10 border border-rose-500/30 shrink-0">
-                <span className="h-2 w-2 rounded-full bg-rose-500 mr-2"></span>
+                <span className="h-2 w-2 rounded-full bg-rose-500 mr-2 shrink-0"></span>
                 Disconnected
               </span>
             ) : (
@@ -696,25 +699,25 @@ export const RoomPage = () => {
           onClick={handleCopyCode}
           variant={copied ? 'outline' : 'secondary'}
           size="sm"
-          className="w-full sm:w-auto min-w-[130px] self-stretch sm:self-auto shrink-0"
+          className="w-full sm:w-auto min-w-[130px] self-stretch sm:self-auto shrink-0 transition-all duration-200"
         >
-          {copied ? (
-            <>
-              <Check className="w-4 h-4 mr-2 text-emerald-400 shrink-0" />
-              <span className="text-emerald-400 font-bold">Copied!</span>
-            </>
-          ) : (
-            <>
-              <Copy className="w-4 h-4 mr-2 text-indigo-400 shrink-0" />
-              <span>Copy Code</span>
-            </>
-          )}
+          <span className="relative flex items-center justify-center">
+            {copied ? (
+              <span className="flex items-center animate-fade-in">
+                <Check className="w-4 h-4 mr-2 text-emerald-400 shrink-0 transition-transform duration-200 scale-110" />
+                <span className="text-emerald-400 font-bold">Copied!</span>
+              </span>
+            ) : (
+              <span className="flex items-center animate-fade-in">
+                <Copy className="w-4 h-4 mr-2 text-indigo-400 shrink-0 transition-transform duration-200" />
+                <span>Copy Code</span>
+              </span>
+            )}
+          </span>
         </Button>
       </div>
 
       {/* Main Grid / Stacking Order Section */}
-      {/* Mobile (<1024px): Stack vertically (1. Player -> 2. Participants -> 3. Controls -> 4. Now Playing) */}
-      {/* Desktop (>=1024px): 3-column grid (Left: Player, Controls, Now Playing; Right: Participants) */}
       <div className="flex flex-col lg:grid lg:grid-cols-3 gap-4 sm:gap-6">
         {/* 1. Player Section */}
         <div className="order-1 lg:order-none lg:col-span-2">
@@ -785,18 +788,18 @@ export const RoomPage = () => {
                 <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Your Role</span>
                 <div>
                   {isHost ? (
-                    <span className="inline-flex items-center text-xs font-bold text-amber-300 px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30">
-                      <Crown className="w-3 h-3 mr-1 text-amber-400 fill-amber-400 shrink-0" />
+                    <span className="inline-flex items-center text-xs font-bold text-amber-300 px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 transition-all duration-300 animate-fade-in">
+                      <Crown className="w-3.5 h-3.5 mr-1 text-amber-400 fill-amber-400 shrink-0" />
                       Host
                     </span>
                   ) : currentParticipant?.role === 'Moderator' ? (
-                    <span className="inline-flex items-center text-xs font-bold text-blue-300 px-2.5 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/30">
-                      <ShieldCheck className="w-3 h-3 mr-1 text-blue-400 shrink-0" />
+                    <span className="inline-flex items-center text-xs font-bold text-blue-300 px-2.5 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/30 transition-all duration-300 animate-fade-in">
+                      <ShieldCheck className="w-3.5 h-3.5 mr-1 text-blue-400 shrink-0" />
                       Moderator
                     </span>
                   ) : (
-                    <span className="inline-flex items-center text-xs font-medium text-slate-300 px-2.5 py-0.5 rounded-full bg-slate-800 border border-slate-700">
-                      <User className="w-3 h-3 mr-1 text-slate-400 shrink-0" />
+                    <span className="inline-flex items-center text-xs font-medium text-slate-300 px-2.5 py-0.5 rounded-full bg-slate-800 border border-slate-700 transition-all duration-300 animate-fade-in">
+                      <User className="w-3.5 h-3.5 mr-1 text-slate-400 shrink-0" />
                       Participant
                     </span>
                   )}
