@@ -12,8 +12,6 @@ import socket from '../services/socketService.js';
 import { getUserData } from '../utils/helpers.js';
 import { canControlPlayback } from '../utils/permissions.js';
 import { AlertCircle, Home, Wifi, WifiOff, Copy, Check, Play, Pause, Crown, ShieldCheck, User, Tv } from 'lucide-react';
-import notify from '../utils/toast.js';
-import { RoomSkeleton } from '../components/Skeletons.jsx';
 
 export const RoomPage = () => {
   const { roomId } = useParams();
@@ -211,9 +209,6 @@ export const RoomPage = () => {
     const handleUserJoined = (data) => {
       if (data?.room) {
         setRoom(data.room);
-        if (data?.username) {
-          notify.info(`${data.username} joined the watch party`);
-        }
       }
     };
 
@@ -221,9 +216,6 @@ export const RoomPage = () => {
     const handleUserLeft = (data) => {
       if (data?.room) {
         setRoom(data.room);
-        if (data?.username) {
-          notify.info(`${data.username} left the room`);
-        }
       }
     };
 
@@ -231,10 +223,8 @@ export const RoomPage = () => {
     const handleRoleAssigned = (data) => {
       if (data?.participants) {
         setRoom((prev) => (prev ? { ...prev, participants: data.participants } : prev));
-        notify.shield('Role permissions updated in room');
       } else if (data?.room) {
         setRoom(data.room);
-        notify.shield('Role permissions updated in room');
       }
     };
 
@@ -245,14 +235,10 @@ export const RoomPage = () => {
         setSocketError('You have been removed from the room by the host.');
         setRoom(null);
         setError('You have been removed from this room by the host.');
-        notify.error('You have been removed from this room by the host');
         return;
       }
       if (data?.participants) {
         setRoom((prev) => (prev ? { ...prev, participants: data.participants } : prev));
-        if (data?.username) {
-          notify.info(`${data.username} was removed from the room`);
-        }
       } else if (data?.room) {
         setRoom(data.room);
       }
@@ -319,7 +305,6 @@ export const RoomPage = () => {
 
       initialAppliedRef.current = false;
       setCurrentVideoId(data.videoId);
-      notify.video('Video changed by host/moderator');
     };
 
     // Event: sync-play
@@ -392,19 +377,16 @@ export const RoomPage = () => {
     const handleSocketError = (err) => {
       setSocketConnecting(false);
       setSocketError(err?.message || 'Socket room error.');
-      notify.error(err?.message || 'Unauthorized or room error');
     };
 
     const handleConnectError = () => {
       setSocketConnecting(false);
       setSocketError('Failed to connect to real-time server.');
-      notify.error('Failed to connect to real-time server');
     };
 
     const handleDisconnect = (reason) => {
       if (reason === 'io server disconnect' || reason === 'transport close') {
         setSocketError('Disconnected from watch party server.');
-        notify.error('Disconnected from watch party server');
       }
     };
 
@@ -500,7 +482,6 @@ export const RoomPage = () => {
     try {
       await navigator.clipboard.writeText(roomId);
       setCopied(true);
-      notify.success('Room code copied to clipboard!');
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('Failed to copy room code:', err);
@@ -575,7 +556,11 @@ export const RoomPage = () => {
   };
 
   if (loading) {
-    return <RoomSkeleton />;
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <Loader size="lg" text="Loading room details..." />
+      </div>
+    );
   }
 
   if (error || !room) {

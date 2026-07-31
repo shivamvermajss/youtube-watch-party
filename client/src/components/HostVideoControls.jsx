@@ -7,8 +7,6 @@ import { updateRoomVideoApi } from '../services/api.js';
 import { extractYouTubeId } from '../utils/helpers.js';
 import { Video, AlertCircle, CheckCircle2, Link2 } from 'lucide-react';
 
-import notify from '../utils/toast.js';
-
 export const HostVideoControls = ({ roomId, onVideoLoaded }) => {
   const [videoInput, setVideoInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -39,14 +37,12 @@ export const HostVideoControls = ({ roomId, onVideoLoaded }) => {
       if (res.success) {
         setVideoInput('');
         setSuccessMsg('Video loaded successfully!');
-        notify.video('Video loaded for all participants!');
         if (onVideoLoaded) {
           onVideoLoaded(videoId, res.data);
         }
         setTimeout(() => setSuccessMsg(''), 3000);
       } else {
         setError(res.message || 'Failed to update video.');
-        notify.error(res.message || 'Failed to update video.');
       }
     } catch (err) {
       const msg = err.response?.data?.message || err.message || 'Network error. Failed to load video.';

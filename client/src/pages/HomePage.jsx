@@ -8,8 +8,6 @@ import { createRoomApi } from '../services/api.js';
 import { saveUserData, getUserData } from '../utils/helpers.js';
 import { Tv, Plus, Sparkles, AlertCircle, ShieldCheck, Zap, Users } from 'lucide-react';
 
-import notify from '../utils/toast.js';
-
 export const HomePage = () => {
   const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
@@ -40,7 +38,6 @@ export const HomePage = () => {
       if (res.success && res.data?.roomId) {
         const createdRoomId = res.data.roomId;
         saveUserData(trimmedName, createdRoomId);
-        notify.success('Watch party room created successfully!');
         navigate(`/room/${createdRoomId}`);
       } else {
         setError(res.message || 'Failed to create room. Please try again.');
