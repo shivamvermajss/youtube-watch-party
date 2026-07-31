@@ -341,6 +341,87 @@ export const initializeSocket = (io) => {
       }
     });
 
+    // Dedicated Event: transfer-host (Protected: Host only)
+    socket.on('transfer-host', async (data) => {
+      try {
+        const { roomId, targetUsername, username } = data || {};
+        if (!roomId || !targetUsername) {
+          return socket.emit('error', {
+            success: false,
+            message: 'RoomId and targetUsername are required',
+          });
+        }
+
+        const room = await findRoomByRoomId(roomId);
+        if (!room) {
+          return socket.emit('error', {
+            success: false,
+            message: 'Room not found',
+          });
+        }
+
+        const trimmedUsername = username?.trim();
+        const issuerRole = getUserRoleInRoom(room, socket.id, trimmedUsername);
+
+        if (issuerRole !== 'Host') {
+          console.warn(`[Socket Warning] Non-host user ${trimmedUsername} attempted transfer-host in room ${roomId}`);
+          return socket.emit('error', {
+            success: false,
+            message: 'Unauthorized: Only the Host can transfer room ownership.',
+          });
+        }
+
+        const trimmedTarget = targetUsername.trim();
+        if (trimmedTarget.toLowerCase() === trimmedUsername?.toLowerCase()) {
+          return socket.emit('error', {
+            success: false,
+            message: 'You cannot transfer host privileges to yourself.',
+          });
+        }
+
+        const targetParticipant = room.participants.find(
+          (p) => p.username.toLowerCase() === trimmedTarget.toLowerCase()
+        );
+
+        if (!targetParticipant) {
+          return socket.emit('error', {
+            success: false,
+            message: 'Target participant not found in room or has disconnected.',
+          });
+        }
+
+        const oldHostParticipant = room.participants.find(
+          (p) => p.role === 'Host' || p.username.toLowerCase() === trimmedUsername?.toLowerCase()
+        );
+
+        if (oldHostParticipant) {
+          oldHostParticipant.role = 'Participant';
+        }
+
+        targetParticipant.role = 'Host';
+        room.hostUsername = targetParticipant.username;
+        room.hostSocketId = targetParticipant.socketId;
+
+        await room.save();
+
+        console.log(`[Socket] Host transferred in room ${roomId} from ${trimmedUsername} to ${targetParticipant.username}`);
+
+        // Broadcast host-transferred to all participants in the room
+        io.to(room.roomId).emit('host-transferred', {
+          oldHostUsername: trimmedUsername,
+          newHostUsername: targetParticipant.username,
+          participants: room.participants,
+          room,
+        });
+      } catch (error) {
+        console.error(`[Socket Error] Error in transfer-host: ${error.message}`);
+        socket.emit('error', {
+          success: false,
+          message: 'Failed to transfer host',
+        });
+      }
+    });
+
     // Event: playback-state (Sent by Host in response to request-playback-state)
     socket.on('playback-state', async (data) => {
       try {

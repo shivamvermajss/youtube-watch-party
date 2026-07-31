@@ -257,6 +257,24 @@ export const RoomPage = () => {
       }
     };
 
+    // Event: host-transferred
+    const handleHostTransferred = (data) => {
+      if (data?.participants) {
+        setRoom((prev) => (prev ? { ...prev, participants: data.participants, hostUsername: data.newHostUsername } : prev));
+      } else if (data?.room) {
+        setRoom(data.room);
+      }
+
+      const { username: currentUsername } = getUserData();
+      if (data?.newHostUsername?.toLowerCase() === currentUsername?.toLowerCase()) {
+        toast.info("You are now the Host.");
+      } else if (data?.oldHostUsername?.toLowerCase() === currentUsername?.toLowerCase()) {
+        toast.info(`Host privileges transferred to ${data?.newHostUsername}.`);
+      } else {
+        toast.success("Host transferred successfully.");
+      }
+    };
+
     // Event: participant-removed
     const handleParticipantRemoved = (data) => {
       const { username: currentUsername } = getUserData();
@@ -443,6 +461,7 @@ export const RoomPage = () => {
     socket.on('user-joined', handleUserJoined);
     socket.on('user-left', handleUserLeft);
     socket.on('role-assigned', handleRoleAssigned);
+    socket.on('host-transferred', handleHostTransferred);
     socket.on('participant-removed', handleParticipantRemoved);
     socket.on('room-access-denied', handleRoomAccessDenied);
     socket.on('receive-reaction', handleReceiveReaction);
@@ -463,6 +482,7 @@ export const RoomPage = () => {
       socket.off('user-joined', handleUserJoined);
       socket.off('user-left', handleUserLeft);
       socket.off('role-assigned', handleRoleAssigned);
+      socket.off('host-transferred', handleHostTransferred);
       socket.off('participant-removed', handleParticipantRemoved);
       socket.off('room-access-denied', handleRoomAccessDenied);
       socket.off('receive-reaction', handleReceiveReaction);
