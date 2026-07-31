@@ -7,17 +7,21 @@ import { PlayerPlaceholder } from '../components/PlayerPlaceholder.jsx';
 import YouTubePlayer from '../components/YouTubePlayer.jsx';
 import HostVideoControls from '../components/HostVideoControls.jsx';
 import { getRoomApi } from '../services/api.js';
+import socket from '../services/socketService.js';
 import { getUserData } from '../utils/helpers.js';
-import { Users, Copy, Check, AlertCircle, Crown, Home } from 'lucide-react';
+import { Users, Copy, Check, AlertCircle, Crown, Home, Wifi, WifiOff } from 'lucide-react';
 
 export const RoomPage = () => {
   const { roomId } = useParams();
   const [room, setRoom] = useState(null);
   const [currentVideoId, setCurrentVideoId] = useState('');
   const [loading, setLoading] = useState(true);
+  const [socketConnecting, setSocketConnecting] = useState(true);
+  const [socketError, setSocketError] = useState('');
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
 
+  // 1. Initial Room Details Fetch via REST API
   useEffect(() => {
     const fetchRoomDetails = async () => {
       if (!roomId) return;
@@ -42,6 +46,107 @@ export const RoomPage = () => {
     };
 
     fetchRoomDetails();
+  }, [roomId]);
+
+  // 2. Real-time Socket.IO Connection & Events
+  useEffect(() => {
+    if (!roomId) return;
+
+    const { username: localUsername } = getUserData();
+
+    if (!localUsername) {
+      setSocketError('Display name not found. Please join room with a valid username.');
+      setSocketConnecting(false);
+      return;
+    }
+
+    setSocketConnecting(true);
+    setSocketError('');
+
+    // Connect socket if not currently connected
+    if (!socket.connected) {
+      socket.connect();
+    }
+
+    const joinPayload = {
+      roomId,
+      username: localUsername,
+    };
+
+    const handleConnect = () => {
+      socket.emit('join-room', joinPayload);
+    };
+
+    if (socket.connected) {
+      handleConnect();
+    } else {
+      socket.on('connect', handleConnect);
+    }
+
+    // Event: room-joined
+    const handleRoomJoined = (data) => {
+      setSocketConnecting(false);
+      setSocketError('');
+      if (data?.success && data?.room) {
+        setRoom(data.room);
+        if (data.room.currentVideoId) {
+          setCurrentVideoId(data.room.currentVideoId);
+        }
+      }
+    };
+
+    // Event: user-joined
+    const handleUserJoined = (data) => {
+      if (data?.room) {
+        setRoom(data.room);
+      }
+    };
+
+    // Event: user-left
+    const handleUserLeft = (data) => {
+      if (data?.room) {
+        setRoom(data.room);
+      }
+    };
+
+    // Socket Errors & Disconnection
+    const handleSocketError = (err) => {
+      setSocketConnecting(false);
+      setSocketError(err?.message || 'Socket room error.');
+    };
+
+    const handleConnectError = () => {
+      setSocketConnecting(false);
+      setSocketError('Failed to connect to real-time server.');
+    };
+
+    const handleDisconnect = (reason) => {
+      if (reason === 'io server disconnect' || reason === 'transport close') {
+        setSocketError('Disconnected from watch party server.');
+      }
+    };
+
+    // Attach listeners
+    socket.on('room-joined', handleRoomJoined);
+    socket.on('user-joined', handleUserJoined);
+    socket.on('user-left', handleUserLeft);
+    socket.on('error', handleSocketError);
+    socket.on('connect_error', handleConnectError);
+    socket.on('disconnect', handleDisconnect);
+
+    // Clean up on unmount
+    return () => {
+      socket.off('connect', handleConnect);
+      socket.off('room-joined', handleRoomJoined);
+      socket.off('user-joined', handleUserJoined);
+      socket.off('user-left', handleUserLeft);
+      socket.off('error', handleSocketError);
+      socket.off('connect_error', handleConnectError);
+      socket.off('disconnect', handleDisconnect);
+
+      socket.emit('leave-room');
+      socket.disconnect();
+    };
   }, [roomId]);
 
   const handleCopyCode = async () => {
@@ -108,17 +213,42 @@ export const RoomPage = () => {
 
   return (
     <div className="space-y-6">
+      {/* Socket Error Alert */}
+      {socketError && (
+        <div className="flex items-center space-x-2 p-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl text-rose-400 text-sm shadow-lg">
+          <AlertCircle className="w-5 h-5 flex-shrink-0" />
+          <span className="font-medium">{socketError}</span>
+        </div>
+      )}
+
       {/* Top Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-lg">
-        <div>
-          <div className="flex items-center space-x-2">
+        <div className="space-y-1">
+          <div className="flex items-center space-x-3">
             <span className="text-xs font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
               Room Code
             </span>
             <h2 className="text-2xl font-bold text-white font-mono tracking-wider">{room.roomId}</h2>
+            {socketConnecting ? (
+              <span className="inline-flex items-center text-xs text-amber-400 font-medium px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20">
+                <Loader size="sm" />
+                <span className="ml-1">Connecting...</span>
+              </span>
+            ) : socketError ? (
+              <span className="inline-flex items-center text-xs text-rose-400 font-medium px-2.5 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/20">
+                <WifiOff className="w-3 h-3 mr-1" />
+                Disconnected
+              </span>
+            ) : (
+              <span className="inline-flex items-center text-xs text-emerald-400 font-medium px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                <Wifi className="w-3 h-3 mr-1" />
+                Connected
+              </span>
+            )}
           </div>
-          <p className="text-xs text-slate-400 mt-1">Share this code with your friends to watch together.</p>
+          <p className="text-xs text-slate-400">Share this code with your friends to watch together in real time.</p>
         </div>
+
         <Button
           onClick={handleCopyCode}
           variant={copied ? 'outline' : 'secondary'}
@@ -176,10 +306,15 @@ export const RoomPage = () => {
             <div className="space-y-3">
               {participants.map((participant, index) => {
                 const participantIsHost = participant.role === 'Host';
+                const isCurrentUser = participant.username?.toLowerCase() === localUsername?.toLowerCase();
                 return (
                   <div
                     key={participant.socketId || index}
-                    className="flex items-center justify-between p-3 bg-slate-800/50 rounded-xl border border-slate-800/80"
+                    className={`flex items-center justify-between p-3 rounded-xl border ${
+                      isCurrentUser
+                        ? 'bg-indigo-950/30 border-indigo-500/30'
+                        : 'bg-slate-800/50 border-slate-800/80'
+                    }`}
                   >
                     <div className="flex items-center space-x-3">
                       <div
@@ -192,6 +327,7 @@ export const RoomPage = () => {
                       <div>
                         <p className="text-sm font-medium text-white flex items-center gap-1.5">
                           {participant.username}
+                          {isCurrentUser && <span className="text-[10px] text-indigo-400 font-normal">(You)</span>}
                           {participantIsHost && <Crown className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />}
                         </p>
                         <p className="text-[11px] text-slate-400">

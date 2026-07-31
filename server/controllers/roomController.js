@@ -26,14 +26,17 @@ export const createRoom = async (req, res, next) => {
       existingRoom = await findRoomByRoomId(roomId);
     }
 
+    const trimmedUsername = username.trim();
+
     // Create room with host participant
     const newRoom = await Room.create({
       roomId,
       hostSocketId,
+      hostUsername: trimmedUsername,
       participants: [
         {
           socketId: hostSocketId,
-          username: username.trim(),
+          username: trimmedUsername,
           role: 'Host',
         },
       ],
@@ -75,24 +78,20 @@ export const joinRoom = async (req, res, next) => {
 
     const trimmedUsername = username.trim();
 
-    // Check if username is already taken by another participant in this room
-    const isUsernameTaken = room.participants.some(
+    // Find if participant with same username already exists
+    const existingParticipant = room.participants.find(
       (participant) => participant.username.toLowerCase() === trimmedUsername.toLowerCase()
     );
 
-    if (isUsernameTaken) {
-      return res.status(409).json({
-        success: false,
-        message: 'Username is already taken in this room',
+    if (existingParticipant) {
+      existingParticipant.socketId = socketId;
+    } else {
+      room.participants.push({
+        socketId,
+        username: trimmedUsername,
+        role: 'Participant',
       });
     }
-
-    // Add new participant
-    room.participants.push({
-      socketId,
-      username: trimmedUsername,
-      role: 'Participant',
-    });
 
     await room.save();
 

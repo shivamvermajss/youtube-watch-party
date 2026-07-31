@@ -31,6 +31,11 @@ const roomSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    hostUsername: {
+      type: String,
+      default: '',
+      trim: true,
+    },
     currentVideoId: {
       type: String,
       default: '',

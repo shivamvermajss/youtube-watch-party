@@ -1,9 +1,86 @@
 import Room from '../models/Room.js';
 import { findRoomByRoomId } from '../utils/findRoomByRoomId.js';
 
+// In-memory store for pending disconnect grace period timeouts
+// Key: `${roomId}_${username.toLowerCase()}` -> Timeout ID
+const disconnectTimeouts = new Map();
+
+/**
+ * Cancel pending disconnect timeout for a user in a room if they reconnected
+ */
+const cancelDisconnectTimeout = (roomId, username) => {
+  if (!roomId || !username) return;
+  const key = `${roomId}_${username.trim().toLowerCase()}`;
+  if (disconnectTimeouts.has(key)) {
+    clearTimeout(disconnectTimeouts.get(key));
+    disconnectTimeouts.delete(key);
+    console.log(`[Socket] Cancelled disconnect timeout for ${username} in room ${roomId}`);
+  }
+};
+
+/**
+ * Schedule participant removal after a 5-second grace period upon disconnection
+ */
+const scheduleUserLeave = (io, roomId, username) => {
+  if (!roomId || !username) return;
+  const trimmedUsername = username.trim();
+  const key = `${roomId}_${trimmedUsername.toLowerCase()}`;
+
+  // Cancel any existing timeout for this user first
+  if (disconnectTimeouts.has(key)) {
+    clearTimeout(disconnectTimeouts.get(key));
+  }
+
+  const timeoutId = setTimeout(async () => {
+    disconnectTimeouts.delete(key);
+    try {
+      const room = await findRoomByRoomId(roomId);
+      if (!room) return;
+
+      const participantIndex = room.participants.findIndex(
+        (p) => p.username.toLowerCase() === trimmedUsername.toLowerCase()
+      );
+
+      if (participantIndex === -1) return;
+
+      // Remove participant from MongoDB after 5s grace period
+      room.participants.splice(participantIndex, 1);
+
+      if (room.participants.length === 0) {
+        // Delete room if all participants left
+        await Room.deleteOne({ _id: room._id });
+        console.log(`[Socket] Room Deleted: ${roomId} (all participants left)`);
+      } else {
+        // Transfer Host to oldest participant if the Host disconnected permanently
+        if (room.hostUsername && room.hostUsername.toLowerCase() === trimmedUsername.toLowerCase()) {
+          const newHost = room.participants[0];
+          newHost.role = 'Host';
+          room.hostUsername = newHost.username;
+          room.hostSocketId = newHost.socketId;
+          console.log(`[Socket] Host transferred in ${roomId} to ${newHost.username}`);
+        }
+
+        await room.save();
+
+        // Broadcast user-left to remaining participants in the room
+        io.to(roomId).emit('user-left', {
+          username: trimmedUsername,
+          room,
+        });
+
+        console.log(`[Socket] User ${trimmedUsername} removed from room ${roomId} after timeout expiration`);
+      }
+    } catch (error) {
+      console.error(`[Socket Error] Disconnect timeout execution failed: ${error.message}`);
+    }
+  }, 5000);
+
+  disconnectTimeouts.set(key, timeoutId);
+  console.log(`[Socket] Scheduled 5s disconnect timeout for ${trimmedUsername} in room ${roomId}`);
+};
+
 /**
  * Handle participant leaving a room or disconnecting
- * Removes participant from MongoDB, reassigns host if needed, or deletes empty room.
  */
 const handleUserLeave = async (io, socket) => {
   try {
@@ -11,36 +88,15 @@ const handleUserLeave = async (io, socket) => {
     if (!room) return;
 
     const participant = room.participants.find((p) => p.socketId === socket.id);
-    const username = participant ? participant.username : 'User';
+    if (!participant) return;
+
+    const username = participant.username;
     const roomId = room.roomId;
 
-    // Filter out leaving participant
-    room.participants = room.participants.filter((p) => p.socketId !== socket.id);
-
-    if (room.participants.length === 0) {
-      // Delete room if no participants remain
-      await Room.deleteOne({ _id: room._id });
-      console.log(`[Socket] Room Deleted: ${roomId} (all participants left)`);
-    } else {
-      // Reassign host if host left
-      if (room.hostSocketId === socket.id) {
-        room.hostSocketId = room.participants[0].socketId;
-        room.participants[0].role = 'Host';
-      }
-
-      await room.save();
-
-      // Broadcast user-left to remaining users in the room
-      io.to(roomId).emit('user-left', {
-        username,
-        socketId: socket.id,
-        room,
-      });
-
-      console.log(`[Socket] Room Left: ${roomId} by ${username} (${socket.id})`);
-    }
-
     socket.leave(roomId);
+
+    // Schedule 5-second grace period before actual removal
+    scheduleUserLeave(io, roomId, username);
   } catch (error) {
     console.error(`[Socket Error] Failed to handle user leave: ${error.message}`);
   }
@@ -76,35 +132,50 @@ export const initializeSocket = (io) => {
 
         const trimmedUsername = username.trim();
 
-        // Check if username is already taken by another participant in the room
-        const isUsernameTaken = room.participants.some(
-          (p) => p.socketId !== socket.id && p.username.toLowerCase() === trimmedUsername.toLowerCase()
-        );
-
-        if (isUsernameTaken) {
-          return socket.emit('error', {
-            success: false,
-            message: 'Username is already taken in this room',
-          });
-        }
+        // Cancel any pending disconnect removal timeout for this user
+        cancelDisconnectTimeout(roomId, trimmedUsername);
 
         // Join Socket.IO room channel
         socket.join(room.roomId);
 
-        // Update or add participant to room in MongoDB
-        const existingParticipantIndex = room.participants.findIndex(
-          (p) => p.socketId === socket.id
+        // Identify participant by username (not socket.id)
+        let participant = room.participants.find(
+          (p) => p.username.toLowerCase() === trimmedUsername.toLowerCase()
         );
 
-        if (existingParticipantIndex !== -1) {
-          room.participants[existingParticipantIndex].username = trimmedUsername;
+        if (participant) {
+          // Update socketId for reconnecting participant
+          participant.socketId = socket.id;
+
+          // Host recovery: restore Host role if username matches hostUsername or participant was Host
+          if (
+            (room.hostUsername && room.hostUsername.toLowerCase() === trimmedUsername.toLowerCase()) ||
+            participant.role === 'Host'
+          ) {
+            participant.role = 'Host';
+            room.hostUsername = participant.username;
+            room.hostSocketId = socket.id;
+          }
         } else {
-          const role = room.participants.length === 0 ? 'Host' : 'Participant';
-          room.participants.push({
+          // Create new participant
+          const isHost =
+            room.participants.length === 0 ||
+            (room.hostUsername && room.hostUsername.toLowerCase() === trimmedUsername.toLowerCase());
+
+          const role = isHost ? 'Host' : 'Participant';
+
+          participant = {
             socketId: socket.id,
             username: trimmedUsername,
             role,
-          });
+          };
+
+          room.participants.push(participant);
+
+          if (isHost) {
+            room.hostUsername = trimmedUsername;
+            room.hostSocketId = socket.id;
+          }
         }
 
         await room.save();
@@ -146,5 +217,5 @@ export const initializeSocket = (io) => {
   });
 };
 
-// Backwards compatibility alias if needed
+// Backwards compatibility alias
 export const initializeSocketHandlers = initializeSocket;
