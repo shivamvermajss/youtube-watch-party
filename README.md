@@ -410,3 +410,582 @@ The YouTube Watch Party application follows a real-time client-server architectu
 - 🍃 MongoDB Atlas for persistent room data
 - 🎥 YouTube IFrame API for synchronized playback
 - 🔄 REST APIs for room creation and management
+
+# 📡 REST API Documentation
+
+The backend exposes RESTful APIs for room creation, participant management, and video synchronization.
+
+## Base URL
+
+### Local
+
+```text
+http://localhost:5000/api
+```
+
+### Production
+
+```text
+https://youtube-watch-party-rf6i.onrender.com/api
+```
+
+---
+
+# 📡 REST API Documentation
+
+The backend exposes RESTful APIs for room creation, participant management, and video synchronization.
+
+## 🌐 Base URL
+
+### Local Development
+
+```text
+http://localhost:5000/api
+```
+
+### Production
+
+```text
+https://youtube-watch-party-rf6i.onrender.com/api
+```
+
+---
+
+## 📋 API Endpoints
+
+| Method | Endpoint | Description |
+|---------|----------|-------------|
+| **POST** | `/rooms/create` | Create a new watch party room |
+| **POST** | `/rooms/join` | Join an existing room |
+| **GET** | `/rooms/:roomId` | Retrieve room information |
+| **GET** | `/rooms/:roomId/participants` | Get all participants in a room |
+| **PATCH** | `/rooms/:roomId/video` | Update the current YouTube video |
+
+---
+
+# 🎬 Create Room
+
+### Endpoint
+
+```http
+POST /api/rooms/create
+```
+
+### Request Body
+
+```json
+{
+  "username": "shivam"
+}
+```
+
+### Success Response
+
+```json
+{
+  "success": true,
+  "roomId": "ABC123",
+  "role": "host"
+}
+```
+
+---
+
+# 👥 Join Room
+
+### Endpoint
+
+```http
+POST /api/rooms/join
+```
+
+### Request Body
+
+```json
+{
+  "roomId": "ABC123",
+  "username": "rahul"
+}
+```
+
+### Success Response
+
+```json
+{
+  "success": true,
+  "role": "participant"
+}
+```
+
+---
+
+# 📺 Get Room Details
+
+### Endpoint
+
+```http
+GET /api/rooms/:roomId
+```
+
+### Success Response
+
+```json
+{
+  "success": true,
+  "room": {
+    "roomId": "ABC123",
+    "videoId": "dQw4w9WgXcQ",
+    "isPlaying": true,
+    "currentTime": 132
+  }
+}
+```
+
+---
+
+# 👤 Get Participants
+
+### Endpoint
+
+```http
+GET /api/rooms/:roomId/participants
+```
+
+### Success Response
+
+```json
+{
+  "success": true,
+  "participants": [
+    {
+      "username": "shivam",
+      "role": "host"
+    },
+    {
+      "username": "rahul",
+      "role": "participant"
+    }
+  ]
+}
+```
+
+---
+
+# 🎥 Update Current Video
+
+### Endpoint
+
+```http
+PATCH /api/rooms/:roomId/video
+```
+
+### Request Body
+
+```json
+{
+  "videoId": "dQw4w9WgXcQ"
+}
+```
+
+### Success Response
+
+```json
+{
+  "success": true,
+  "message": "Video updated successfully"
+}
+```
+
+---
+
+# ❌ Error Response
+
+```json
+{
+  "success": false,
+  "message": "Room not found"
+}
+```
+
+---
+
+# ✨ API Features
+
+- RESTful API architecture
+- JSON-based request and response format
+- Express.js routing and middleware
+- Centralized error handling
+- MongoDB Atlas integration
+- Mongoose ODM for database operations
+- Socket.IO integration for real-time synchronization
+- Modular controller-based architecture
+- Scalable endpoint design
+- Production-ready deployment on Render
+
+---
+
+## 🧪 Test the APIs
+
+You can test all REST APIs using:
+
+- **Postman**
+- **Thunder Client (VS Code)**
+- **Insomnia**
+- **cURL**
+
+Example:
+
+```bash
+curl -X POST https://youtube-watch-party-rf6i.onrender.com/api/rooms/create \
+-H "Content-Type: application/json" \
+-d "{\"username\":\"shivam\"}"
+```
+
+---
+
+## 📌 HTTP Status Codes
+
+| Status Code | Meaning |
+|-------------|---------|
+| **200 OK** | Request completed successfully |
+| **201 Created** | Resource created successfully |
+| **400 Bad Request** | Invalid request data |
+| **404 Not Found** | Room or resource not found |
+| **500 Internal Server Error** | Unexpected server error |
+
+---
+
+The REST API is responsible for room management, participant management, and persistence, while real-time events such as video playback synchronization, reactions, and role updates are handled through **Socket.IO**.
+
+# ⚡ Socket.IO Events Documentation
+
+Real-time communication is powered by **Socket.IO**, enabling instant synchronization between all participants in a watch party. Every playback action, participant update, and role change is broadcast to connected users with minimal latency.
+
+---
+
+## 🔄 Event Flow Overview
+
+```text
+Host / Moderator
+        │
+        ▼
+ Socket.IO Client
+        │
+        ▼
+ Express + Socket.IO Server
+        │
+ Permission Validation
+        │
+        ▼
+ Broadcast to Room
+        │
+ ┌──────┼───────────────┐
+ ▼      ▼               ▼
+Host  Moderator   Participants
+```
+
+---
+
+## 📡 Client → Server Events
+
+| Event | Payload | Description |
+|-------|---------|-------------|
+| `join_room` | `{ roomId, username }` | Join an existing watch room |
+| `leave_room` | `{ roomId }` | Leave the current room |
+| `play` | `{}` | Play the current video |
+| `pause` | `{}` | Pause the current video |
+| `seek` | `{ currentTime }` | Synchronize video timestamp |
+| `change_video` | `{ videoId }` | Load a new YouTube video |
+| `assign_role` | `{ userId, role }` | Promote participant to Moderator |
+| `remove_participant` | `{ userId }` | Remove participant from room |
+| `transfer_host` | `{ userId }` | Transfer Host privileges |
+| `emoji_reaction` | `{ emoji }` | Broadcast emoji reaction |
+
+---
+
+## 📡 Server → Client Events
+
+| Event | Payload | Description |
+|-------|---------|-------------|
+| `room_joined` | Room Information | User successfully joined room |
+| `sync_state` | Playback State | Synchronize current playback state |
+| `video_changed` | Video Information | Broadcast new YouTube video |
+| `playback_updated` | Current Time | Synchronize play/pause/seek |
+| `participant_joined` | Participant Data | Notify room of new participant |
+| `participant_left` | Participant Data | Notify room when someone leaves |
+| `role_updated` | Updated Role | Broadcast role changes |
+| `participant_removed` | User ID | Remove participant from room |
+| `host_transferred` | Host Information | Notify all users of new Host |
+| `reaction_received` | Emoji | Display emoji reaction |
+
+---
+
+# 🔐 Permission Validation
+
+Every incoming Socket.IO event is validated on the backend before it is processed.
+
+| Action | Host | Moderator | Participant |
+|--------|:----:|:----------:|:-----------:|
+| Join Room | ✅ | ✅ | ✅ |
+| Leave Room | ✅ | ✅ | ✅ |
+| Play Video | ✅ | ✅ | ❌ |
+| Pause Video | ✅ | ✅ | ❌ |
+| Seek Video | ✅ | ✅ | ❌ |
+| Change Video | ✅ | ✅ | ❌ |
+| Assign Moderator | ✅ | ❌ | ❌ |
+| Remove Participant | ✅ | ❌ | ❌ |
+| Transfer Host | ✅ | ❌ | ❌ |
+| Send Emoji Reaction | ✅ | ✅ | ✅ |
+
+---
+
+# 🎥 Video Synchronization Workflow
+
+```text
+Host loads YouTube Video
+            │
+            ▼
+Socket.IO Event (change_video)
+            │
+            ▼
+Backend Permission Validation
+            │
+            ▼
+Update Room State
+            │
+            ▼
+Broadcast to All Connected Clients
+            │
+     ┌──────┼────────┐
+     ▼      ▼        ▼
+ Host  Moderator  Participant
+            │
+            ▼
+ YouTube Player Updates Instantly
+```
+
+---
+
+# 👥 Participant Synchronization Workflow
+
+```text
+User Joins Room
+        │
+        ▼
+Socket.IO Connection Established
+        │
+        ▼
+Room Lookup
+        │
+        ▼
+Participant Added
+        │
+        ▼
+Current Playback State Retrieved
+        │
+        ▼
+Broadcast Updated Participant List
+        │
+        ▼
+Late Joiner Automatically Receives
+
+• Current Video
+• Current Playback Time
+• Play / Pause State
+• Participant List
+• User Roles
+```
+
+---
+
+# ⚡ Real-Time Features Powered by Socket.IO
+
+- 🎬 Instant YouTube video synchronization
+- ▶️ Real-time Play/Pause synchronization
+- ⏩ Live Seek synchronization
+- 🔄 Automatic synchronization for late joiners
+- 👥 Live participant updates
+- 👑 Host transfer without page refresh
+- 🛡️ Real-time Moderator assignment
+- ❌ Instant participant removal
+- 😊 Emoji reaction broadcasting
+- 🔐 Backend role validation for every privileged action
+
+---
+
+## 📈 Why Socket.IO?
+
+Socket.IO was chosen because it provides reliable, low-latency, bidirectional communication between clients and the server. It enables seamless real-time synchronization of playback events, participant management, and role updates while automatically handling reconnection and event delivery across connected users.
+
+# 🚀 Local Setup & Installation
+
+Follow the steps below to run the project locally.
+
+---
+
+## 1️⃣ Clone the Repository
+
+```bash
+git clone https://github.com/shivamvermajss/youtube-watch-party.git
+```
+
+```bash
+cd youtube-watch-party
+```
+
+---
+
+## 2️⃣ Install Frontend Dependencies
+
+```bash
+cd client
+npm install
+```
+
+---
+
+## 3️⃣ Install Backend Dependencies
+
+```bash
+cd ../server
+npm install
+```
+
+---
+
+## 4️⃣ Configure Environment Variables
+
+### Backend (`server/.env`)
+
+```env
+PORT=5000
+NODE_ENV=development
+
+MONGO_URI=YOUR_MONGODB_CONNECTION_STRING
+
+CLIENT_URL=http://localhost:5173
+```
+
+---
+
+### Frontend (`client/.env`)
+
+```env
+VITE_API_URL=http://localhost:5000/api
+
+VITE_SOCKET_URL=http://localhost:5000
+```
+
+---
+
+## 5️⃣ Start Backend
+
+```bash
+cd server
+npm run dev
+```
+
+---
+
+## 6️⃣ Start Frontend
+
+```bash
+cd client
+npm run dev
+```
+
+---
+
+## 7️⃣ Open Application
+
+```
+http://localhost:5173
+```
+
+---
+
+## Development Workflow
+
+```
+React (5173)
+
+↓
+
+REST API
+
+↓
+
+Express (5000)
+
+↓
+
+Socket.IO
+
+↓
+
+MongoDB Atlas
+```
+
+# 🔐 Environment Variables
+
+## Backend
+
+| Variable | Description |
+|----------|-------------|
+| PORT | Express server port |
+| NODE_ENV | Application environment |
+| MONGO_URI | MongoDB Atlas connection string |
+| CLIENT_URL | Frontend URL |
+
+---
+
+## Frontend
+
+| Variable | Description |
+|----------|-------------|
+| VITE_API_URL | Backend REST API URL |
+| VITE_SOCKET_URL | Backend Socket.IO URL |
+
+# 🚀 Future Improvements
+
+The current implementation focuses on a production-ready MVP. Future enhancements include:
+
+- 🔐 User Authentication
+- 💾 Persistent Room Recovery
+- 💬 Real-Time Text Chat
+- 📃 Playlist Support
+- 🎵 Shared Queue Management
+- 📺 Video History
+- 🎙️ Voice Chat
+- 📹 WebRTC Video Calling
+- 📺 Screen Sharing
+- 📊 Analytics Dashboard
+- 📱 Progressive Web App (PWA)
+- 🔔 Push Notifications
+- 🌍 Internationalization (i18n)
+- ⚡ Redis Adapter for Horizontal Scaling
+- ☁️ Kubernetes-based Deployment
+
+# 👨‍💻 Author
+
+**Shivam Verma**
+
+Final Year B.Tech Computer Science Student
+
+Full Stack MERN Developer
+
+### GitHub
+
+https://github.com/shivamvermajss
+
+### LinkedIn
+
+https://www.linkedin.com/in/shivam-verma-227b37384/
+
+---
+
+# 📄 License
+
+This project is licensed under the MIT License.
+
+See the LICENSE file for more details.
