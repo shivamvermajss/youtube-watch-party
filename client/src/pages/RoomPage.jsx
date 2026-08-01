@@ -40,91 +40,104 @@ export const RoomPage = () => {
   const pendingPlaybackStateRef = useRef(null);
   const wasDisconnectedRef = useRef(false);
 
+  // Helper 1: Apply Initial Room State with Robust Polling
   const applyRoomPlaybackState = (roomData, player) => {
     if (!roomData || !player) return;
 
-    const { currentTime, isPlaying } = roomData;
-
+    const { currentTime, isPlaying, currentVideoId: roomVid } = roomData;
     isSyncingRef.current = true;
 
     try {
-      if (typeof currentTime === "number" && currentTime > 0) {
+      // Explicitly load the video ID to prevent black screens on fresh load
+      const vidId = roomVid || currentVideoId;
+      if (vidId && typeof player.loadVideoById === "function") {
+        player.loadVideoById(vidId, currentTime || 0);
+      } else if (typeof currentTime === "number" && currentTime > 0) {
         player.seekTo(currentTime, true);
       }
 
-      setTimeout(() => {
-        try {
-          if (isPlaying) {
-            player.playVideo();
-            setTimeout(() => { isSyncingRef.current = false; }, 300);
-          } else {
-            player.playVideo();
-            setTimeout(() => {
-              player.pauseVideo();
-              isSyncingRef.current = false;
-            }, 400);
-          }
-        } catch (e) {
+      if (isPlaying) {
+        setTimeout(() => {
+          if (typeof player.playVideo === "function") player.playVideo();
           isSyncingRef.current = false;
-        }
-      }, 300);
+        }, 300);
+      } else {
+        // Robust Play-then-Pause Polling Trick
+        if (typeof player.playVideo === "function") player.playVideo();
 
+        let attempts = 0;
+        const pollInterval = setInterval(() => {
+          attempts++;
+          const state = typeof player.getPlayerState === "function" ? player.getPlayerState() : -1;
+
+          // 1 = PLAYING. Once it hits playing, the visual frame is loaded.
+          if (state === 1) {
+            player.pauseVideo();
+            player.seekTo(currentTime || 0, true); // Snap precisely to timestamp
+            clearInterval(pollInterval);
+            isSyncingRef.current = false;
+          } else if (attempts > 40) { // 4-second safety timeout
+            player.pauseVideo();
+            clearInterval(pollInterval);
+            isSyncingRef.current = false;
+          }
+        }, 100);
+      }
     } catch (err) {
       console.error(err);
       isSyncingRef.current = false;
     }
   };
 
+  // Helper 2: Apply Socket Sync State with Robust Polling
   const applyPendingPlaybackState = () => {
     if (!playerRef.current || !pendingPlaybackStateRef.current) return;
 
     const { currentTime, isPlaying } = pendingPlaybackStateRef.current;
-
     isSyncingRef.current = true;
 
     try {
-      if (
-        typeof currentTime === "number" &&
-        typeof playerRef.current.seekTo === "function"
-      ) {
+      if (typeof currentTime === "number" && typeof playerRef.current.seekTo === "function") {
         playerRef.current.seekTo(currentTime, true);
       }
 
-      setTimeout(() => {
-        try {
-          if (!playerRef.current) return;
-
-          if (isPlaying) {
+      if (isPlaying) {
+        setTimeout(() => {
+          if (typeof playerRef.current?.playVideo === "function") {
             playerRef.current.playVideo();
-
-            setTimeout(() => {
-              const state = playerRef.current?.getPlayerState?.();
-
-              if (state !== 1) {
-                playerRef.current.playVideo();
-              }
-
-              isSyncingRef.current = false;
-              pendingPlaybackStateRef.current = null;
-            }, 500);
-
-          } else {
-            playerRef.current.playVideo();
-            setTimeout(() => {
-              playerRef.current.pauseVideo();
-              isSyncingRef.current = false;
-              pendingPlaybackStateRef.current = null;
-            }, 400);
           }
-        } catch (err) {
-          console.error(err);
           isSyncingRef.current = false;
+          pendingPlaybackStateRef.current = null;
+        }, 300);
+      } else {
+        // Robust Play-then-Pause Polling Trick
+        if (typeof playerRef.current?.playVideo === "function") {
+          playerRef.current.playVideo();
         }
-      }, 500);
 
+        let attempts = 0;
+        const pollInterval = setInterval(() => {
+          attempts++;
+          const state = typeof playerRef.current?.getPlayerState === "function" ? playerRef.current.getPlayerState() : -1;
+
+          if (state === 1) {
+            playerRef.current.pauseVideo();
+            playerRef.current.seekTo(currentTime || 0, true);
+            clearInterval(pollInterval);
+            isSyncingRef.current = false;
+            pendingPlaybackStateRef.current = null;
+          } else if (attempts > 40) {
+            playerRef.current?.pauseVideo();
+            clearInterval(pollInterval);
+            isSyncingRef.current = false;
+            pendingPlaybackStateRef.current = null;
+          }
+        }, 100);
+      }
     } catch (err) {
       console.error(err);
       isSyncingRef.current = false;
+      pendingPlaybackStateRef.current = null;
     }
   };
 
@@ -584,7 +597,7 @@ export const RoomPage = () => {
       setRoom((prev) => (prev ? { ...prev, currentVideoId: videoId, currentTime: 0, isPlaying: true } : prev));
     }
 
-    // 2. THE FIX: Explicitly force the Host's iframe to load the new video ID
+    // 2. Explicitly force the Host's iframe to load the new video ID
     if (playerRef.current && typeof playerRef.current.loadVideoById === 'function') {
       isSyncingRef.current = true;
       try {
