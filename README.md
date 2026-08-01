@@ -175,3 +175,238 @@ Participants are updated in real time. Hosts can assign moderators, transfer hos
 - dotenv
 
 ---
+
+# 📂 Project Structure
+
+```text
+youtube-watch-party
+│
+├── client
+│   ├── public
+│   ├── src
+│   │   ├── assets
+│   │   ├── components
+│   │   ├── context
+│   │   ├── hooks
+│   │   ├── pages
+│   │   ├── routes
+│   │   ├── services
+│   │   ├── socket
+│   │   ├── utils
+│   │   ├── App.jsx
+│   │   └── main.jsx
+│   └── package.json
+│
+├── server
+│   ├── config
+│   ├── controllers
+│   ├── middleware
+│   ├── models
+│   ├── routes
+│   ├── socket
+│   ├── utils
+│   ├── app.js
+│   ├── server.js
+│   └── package.json
+│
+├── screenshots
+│
+├── README.md
+│
+└── LICENSE
+```
+
+---
+
+## 📁 Folder Description
+
+| Folder | Description |
+|---------|-------------|
+| **client/** | React frontend built with Vite |
+| **server/** | Express backend with Socket.IO |
+| **controllers/** | Business logic for room operations |
+| **routes/** | REST API endpoints |
+| **models/** | MongoDB database models |
+| **socket/** | WebSocket event handlers and synchronization logic |
+| **middleware/** | Logger, error handling, request validation |
+| **config/** | Database connection and CORS configuration |
+| **screenshots/** | Project screenshots and demo GIF used in README |
+
+---
+
+# 🏗️ System Architecture
+
+```text
+                    +------------------------+
+                    |       Browser          |
+                    |     React + Vite       |
+                    +-----------+------------+
+                                |
+                                |
+               REST API          |      Socket.IO
+                                |
+                                ▼
+                    +------------------------+
+                    |   Express.js Server    |
+                    |  Room Controller/API   |
+                    +-----------+------------+
+                                |
+              +-----------------+-----------------+
+              |                                   |
+              ▼                                   ▼
+     Socket.IO Server                    MongoDB Atlas
+(Room Management & Sync)             Room Metadata & Users
+```
+
+The application follows a client-server architecture where the React frontend communicates with the Express backend using REST APIs for room management and Socket.IO for real-time synchronization. MongoDB Atlas stores room metadata and participant information.
+
+# 🔄 Application Flow
+
+```text
+User Opens Website
+        │
+        ▼
+Create / Join Room
+        │
+        ▼
+Backend Creates / Finds Room
+        │
+        ▼
+Socket.IO Connection Established
+        │
+        ▼
+User Joins Room
+        │
+        ▼
+Participants Receive Update
+        │
+        ▼
+Host Loads YouTube Video
+        │
+        ▼
+Video Broadcast to Everyone
+        │
+        ▼
+Play / Pause / Seek Events
+        │
+        ▼
+Real-Time Synchronization
+```
+
+# ⚡ Socket.IO Event Flow
+
+```text
+Host
+ │
+ │ change_video
+ ▼
+Socket.IO Server
+ │
+ ├────────────► Participant 1
+ │
+ ├────────────► Participant 2
+ │
+ ├────────────► Participant 3
+ │
+ └────────────► Moderator
+```
+
+All playback actions are first validated on the backend before being broadcast to every connected participant in the room.
+
+# 👥 Role-Based Permission Flow
+
+```text
+                 HOST
+      ┌──────────┼──────────┐
+      │          │          │
+      ▼          ▼          ▼
+
+ Load Video   Assign Role  Remove User
+ Play/Pause   Transfer Host Change Video
+ Seek
+
+                │
+                ▼
+
+            MODERATOR
+      ┌──────────┼─────────┐
+      ▼          ▼         ▼
+
+ Play/Pause     Seek     Change Video
+
+                │
+                ▼
+
+           PARTICIPANT
+
+        Watch Only
+        Emoji Reactions
+```
+
+# 🗄️ Database Schema
+
+```text
+Room
+│
+├── roomId
+├── hostId
+├── videoId
+├── currentTime
+├── isPlaying
+├── participants[]
+└── createdAt
+
+
+Participant
+
+├── socketId
+├── username
+├── role
+└── joinedAt
+```
+# 🎯 Design Decisions
+
+### Why Socket.IO?
+
+Socket.IO was selected to provide low-latency, bidirectional communication between the client and server, enabling real-time synchronization of video playback across all connected participants.
+
+### Why MongoDB?
+
+MongoDB Atlas stores room information, participant metadata, playback state, and room configuration. Its flexible document model makes it suitable for rapidly evolving real-time applications.
+
+### Why React?
+
+React provides a component-based architecture, making the UI modular, reusable, and easy to maintain.
+
+### Why Express?
+
+Express provides a lightweight backend for REST APIs, room management, and seamless integration with Socket.IO.
+
+# 🚧 Challenges Solved
+
+During development, several real-world challenges were encountered and resolved:
+
+- Fixed synchronization issues caused by delayed YouTube player initialization.
+- Implemented state recovery for users refreshing the page without breaking the room.
+- Prevented unauthorized playback by enforcing backend role validation.
+- Resolved Socket.IO reconnection issues after browser refresh.
+- Fixed deployment issues on Render related to MongoDB Atlas DNS resolution.
+- Configured Vercel routing to support React Router deep links.
+- Ensured newly joined participants automatically synchronize with the current playback state.
+
+# 🏗️ System Architecture
+
+The YouTube Watch Party application follows a real-time client-server architecture. The React frontend communicates with the Express backend using REST APIs for room management and Socket.IO for instant synchronization of video playback, reactions, and participant updates. MongoDB Atlas stores room metadata and playback state, while the application is deployed using Vercel and Render.
+
+<p align="center">
+  <img src="./screenshots/architecture-overview.png" alt="YouTube Watch Party Architecture" width="100%">
+</p>
+
+### Architecture Highlights
+
+- ⚛️ React + Vite frontend hosted on **Vercel**
+- 🟢 Express.js backend hosted on **Render**
+- ⚡ Socket.IO for real-time synchronization
+- 🍃 MongoDB Atlas for persistent room data
+- 🎥 YouTube IFrame API for synchronized playback
+- 🔄 REST APIs for room creation and management
