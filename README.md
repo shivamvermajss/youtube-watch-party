@@ -133,3 +133,45 @@ The synchronized watch room includes the YouTube player, participant management,
 Participants are updated in real time. Hosts can assign moderators, transfer host privileges, or remove users directly from the participant panel.
 
 ---
+
+# 🛠️ Tech Stack
+
+| Category | Technologies |
+|----------|--------------|
+| **Frontend** | React.js, Vite, React Router DOM, Axios |
+| **Backend** | Node.js, Express.js |
+| **Real-Time Communication** | Socket.IO |
+| **Database** | MongoDB Atlas, Mongoose |
+| **UI & Styling** | Tailwind CSS, Lucide React, React Hot Toast, Sonner |
+| **YouTube Integration** | React YouTube, YouTube IFrame API |
+| **Deployment** | Vercel (Frontend), Render (Backend) |
+| **Version Control** | Git, GitHub |
+| **Development Tools** | VS Code, Postman, MongoDB Compass |
+
+---
+
+## 📦 Project Dependencies
+
+### Frontend
+
+- React 18
+- Vite
+- React Router DOM
+- Axios
+- Socket.IO Client
+- React YouTube
+- Lucide React
+- React Hot Toast
+- Sonner
+
+### Backend
+
+- Node.js
+- Express.js
+- Socket.IO
+- MongoDB Atlas
+- Mongoose
+- CORS
+- dotenv
+
+---
