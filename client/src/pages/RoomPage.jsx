@@ -571,11 +571,39 @@ export const RoomPage = () => {
   const handleVideoLoaded = (videoId, updatedRoom) => {
     setCurrentVideoId(videoId);
     initialAppliedRef.current = false;
+
+    // 1. Set pending state for the host
+    pendingPlaybackStateRef.current = {
+      currentTime: 0,
+      isPlaying: true
+    };
+
     if (updatedRoom) {
       setRoom(updatedRoom);
     } else {
       setRoom((prev) => (prev ? { ...prev, currentVideoId: videoId, currentTime: 0, isPlaying: true } : prev));
     }
+
+    // 2. THE FIX: Explicitly force the Host's iframe to load the new video ID
+    if (playerRef.current && typeof playerRef.current.loadVideoById === 'function') {
+      isSyncingRef.current = true;
+      try {
+        playerRef.current.loadVideoById(videoId, 0);
+
+        // Wait a brief moment for the video to cue before playing
+        setTimeout(() => {
+          if (playerRef.current && typeof playerRef.current.playVideo === 'function') {
+            playerRef.current.playVideo();
+          }
+          isSyncingRef.current = false;
+        }, 500);
+      } catch (err) {
+        console.error("Host failed to load video internally:", err);
+        isSyncingRef.current = false;
+      }
+    }
+
+    // 3. Broadcast the change to all other participants
     const { username: localUsername } = getUserData();
     socket.emit('host-video-change', {
       roomId,
