@@ -38,3 +38,56 @@ Users can create private rooms, invite participants using a unique room code, sy
 The application is built using **React**, **Node.js**, **Express**, **Socket.IO**, and **MongoDB Atlas**, with the frontend deployed on **Vercel** and the backend deployed on **Render**.
 
 ---
+
+## ✨ Features
+
+### 🎥 Real-Time Synchronization
+
+- 🔄 Real-time YouTube video synchronization using **Socket.IO**
+- ▶️ Synchronized Play, Pause, and Seek controls
+- ⏱️ Late joiners automatically sync to the current playback state
+- 📺 Supports standard YouTube URLs, short URLs, and video IDs
+
+---
+
+### 👥 Room Management
+
+- 🏠 Create private watch rooms with a unique room code
+- 🚪 Join rooms instantly using the room code
+- 📋 One-click room code copy
+- 👥 Live participant list with real-time updates
+- 🟢 Connection status indicator
+
+---
+
+### 👑 Role-Based Permissions
+
+- 👑 Host controls video playback
+- 🛡️ Assign and remove Moderator role
+- 🔄 Transfer Host privileges to another participant
+- ❌ Remove participants from the room
+- 🔒 Role-based access control for room management
+
+---
+
+### 😊 Interactive Experience
+
+- ❤️ Emoji reactions during playback
+- 🔔 Beautiful toast notifications for important actions
+- 📱 Fully responsive design for Desktop, Tablet, and Mobile
+- 🎨 Modern dark-themed user interface
+- ✨ Smooth animations and hover effects
+
+---
+
+### ⚡ Backend & Infrastructure
+
+- 🌐 RESTful API built with Express.js
+- ⚡ Real-time communication using Socket.IO
+- 🍃 MongoDB Atlas for database management
+- ☁️ Frontend deployed on Vercel
+- 🚀 Backend deployed on Render
+- 🔐 Environment variable configuration
+- 📂 Clean and scalable project architecture
+
+---
