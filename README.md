@@ -91,3 +91,45 @@ The application is built using **React**, **Node.js**, **Express**, **Socket.IO*
 - 📂 Clean and scalable project architecture
 
 ---
+
+# 📸 Application Screenshots
+
+## 🏠 Home Page
+
+<p align="center">
+  <img src="./screenshots/home.png" width="100%" alt="Home Page"/>
+</p>
+
+The landing page allows users to create a new watch room or join an existing room using a unique room code.
+
+---
+
+## ➕ Create Room
+
+<p align="center">
+  <img src="./screenshots/create-room.png" width="100%" alt="Create Room"/>
+</p>
+
+Hosts can instantly create a private watch party room and invite others using the generated room code.
+
+---
+
+## 🎬 Watch Room
+
+<p align="center">
+  <img src="./screenshots/watch-room.png" width="100%" alt="Watch Room"/>
+</p>
+
+The synchronized watch room includes the YouTube player, participant management, reactions, room controls, and real-time synchronization powered by Socket.IO.
+
+---
+
+## 👥 Participants Panel
+
+<p align="center">
+  <img src="./screenshots/participants.png" width="100%" alt="Participants"/>
+</p>
+
+Participants are updated in real time. Hosts can assign moderators, transfer host privileges, or remove users directly from the participant panel.
+
+---
